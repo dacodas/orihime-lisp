@@ -1,0 +1,12 @@
+* TODO Use scribble (or something similar) for documentation
+* TODO Make a mode for looking at \*japanese-word-\* buffers
+** TODO Handle cases with ㋐㋑㋒㋓㋔ in the definitions
+There are two ways of solving this, I think:
+
+1. Parse the dictionary entries into Lispy data structures
+2. Allow the \*japanese-word-\* mode to treat lines starting with ㋐㋑
+   etc. in the same way org-mode treats lines starting with hyphens
+   and numbers
+* TODO Create stack based approach to looking up words
+* TODO Create network of words after stack based session
+* TODO Get linedit working
