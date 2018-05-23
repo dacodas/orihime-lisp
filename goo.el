@@ -10,28 +10,58 @@
 
 (defun show-goo-word (word text)
   ""
-    (let ((original-buffer (current-buffer)))
-      (switch-to-buffer (format "*goo-word-%s*" word))
-      (insert text)
-      (fill-individual-paragraphs (point-min) (point-max))
-      (text-scale-adjust 4)
-      (goto-char (point-min)))
+    (switch-to-buffer (format "*goo-word-%s*" word))
+    (insert text)
+    (fill-individual-paragraphs (point-min) (point-max))
+    (text-scale-adjust 4)
+    (goto-char (point-min))
     t)
 
-(defun lookup-goo-word (word)
-  ""
-  (eval-slime
-   `(goo:lookup-and-show-new-word ,word)))
 
-(defun lookup-goo-word-prompt ()
-  ""
-  (interactive)
-  (lookup-goo-word (read-string "What word to lookup? ")))
+(defmacro buffer-format-to-regexp (goo-buffer-format)
+  "Generate regexp variable and matching function from GOO-BUFFER-FORMAT.
+- A variable goo-.*-regexp which allows for matching the buffer
+- A function match-goo-.* which matches a buffer and returns the
+  \"string-match\" result"
+  (let ((regexp-var-name (replace-regexp-in-string
+                          "\\(.*\\)-format"
+                          "\\1-regexp"
+                          (format "%s" goo-buffer-format)))
+        (regexp-value (replace-regexp-in-string
+                       "\\*\(.*\)-%s\\*"
+                       "\\\\*\\1-\\(.*\\)\\\\*"
+                       (symbol-value goo-buffer-format)))
+        (predicate-name (replace-regexp-in-string
+                          "\\(.*\\)-format"
+                          "match-\\1"
+                          (format "%s" goo-buffer-format))))
+    `(progn (defvar ,(intern regexp-var-name) ,regexp-value)
+            (defun ,(intern predicate-name) (buffer)
+              (string-match ,(intern regexp-var-name) (buffer-name buffer))))))
 
-(defun lookup-goo-word-from-region (start end)
+(defvar goo-sentence-buffer-format "*goo-sentence-%s*")
+(defvar goo-word-buffer-format "*goo-word-%s*")
+
+(buffer-format-to-regexp goo-sentence-buffer-format)
+(buffer-format-to-regexp goo-word-buffer-format)
+
+(defun get-sentence-buffer-numbers ()
   ""
-  (interactive "r")
-  (lookup-goo-word (buffer-substring-no-properties start end)))
+  (sort (cl-loop for buffer in
+                 (buffer-list)
+                 when (match-goo-sentence-buffer buffer)
+                 collect (string-to-number (match-string 1 (buffer-name name))))
+        '<))
+
+(defun new-sentence-buffer ()
+  ""
+  (let ((available-number 1)
+        (used-numbers (get-sentence-buffer-numbers)))
+    (cl-loop while (eq available-number (car used-numbers))
+             do (progn
+                  (cl-incf available-number)
+                  (setf used-numbers (cdr used-numbers))))
+    (switch-to-buffer (format "*goo-sentence-%s*" available-number))))
 
 (defun eval-slime (sexp)
   "Take SEXP and evaluate it in slime.
@@ -45,14 +75,26 @@ case. Running it gives some bullshit"
     (slime-eval-buffer)
     (switch-to-buffer original-buffer)))
 
-(defun word-from-buffer ()
+(defun lookup-goo-word (word &optional parent-word)
+  ""
+  (eval-slime
+   `(goo:lookup-and-show-new-word ,word ,parent-word)))
+
+(defun lookup-goo-word-prompt ()
   ""
   (interactive)
-  (let ((buffer-name (format "%s" (current-buffer))))
-    (string-match "\\*goo-word-\\(.*\\)\\*" buffer-name)
-    (match-string 1 buffer-name)))
+  (lookup-goo-word (read-string "What word to lookup? ")))
 
-(defun fill-buffer ()
+(defun lookup-goo-word-from-region (start end)
   ""
-  
-  )
+  (interactive "r")
+  (let ((buffer (current-buffer))
+        (goo-word (buffer-substring-no-properties start end)))
+    (cond ((match-goo-sentence-buffer buffer) (message (format "Looking up word from sentence %s" (match-string 1 (buffer-name buffer)))))
+          ((match-goo-word-buffer buffer) (lookup-goo-word goo-word (match-string 1 (buffer-name buffer))))
+          (t (lookup-goo-word goo-word)))))
+
+(provide 'goo)
+;;; goo.el ends here
+
+

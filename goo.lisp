@@ -10,8 +10,12 @@
     :initform nil)
    (entry-page
     :initform nil)
-   (linked-words
-    :initform nil)))
+   (parent-words
+    :initform nil
+    :accessor goo-word-parents)
+   (child-words
+    :initform nil
+    :accessor goo-word-children)))
 
 (defun strip (string)
   (string-trim '(#\Space #\Tab #\Newline #\Linefeed #\Rubout #\Return) string))
@@ -55,10 +59,17 @@
 	       (cl-ppcre:regex-replace-all "(?m)\\n{3,}"
 					   (lquery-funcs:text (entry-contents (page-entry (slot-value word 'entry-page)))) (format nil "~%~%"))))
 
-(defun lookup-and-show-new-word (word)
+(defun lookup-and-show-new-word (word &optional parent-word)
   (let ((new-word (make-instance 'goo-word :reading word)))
+
     (setf (gethash word *words*) new-word)
     (goo-word-fill new-word)
+
+    (if parent-word
+	(progn
+	  (setf (goo-word-children (gethash parent-word *words*)) (cons new-word (goo-word-children (gethash parent-word *words*))))
+	  (setf (goo-word-parents new-word) (cons (gethash parent-word *words*) (goo-word-parents new-word)))))
+
     (swank::eval-in-emacs
      `(show-goo-word
        ,word
