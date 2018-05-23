@@ -50,7 +50,7 @@
   (sort (cl-loop for buffer in
                  (buffer-list)
                  when (match-goo-sentence-buffer buffer)
-                 collect (string-to-number (match-string 1 (buffer-name name))))
+                 collect (string-to-number (match-string 1 (buffer-name buffer))))
         '<))
 
 (defun new-sentence-buffer ()
@@ -75,10 +75,20 @@ case. Running it gives some bullshit"
     (slime-eval-buffer)
     (switch-to-buffer original-buffer)))
 
-(defun lookup-goo-word (word &optional parent-word)
+(defun add-sentence (start end)
+  (interactive "r")
+  (let ((buffer-contents (buffer-substring-no-properties (point-min) (point-max)))
+        (user-response (read-string "Are you sure? (This will make the buffer read-only): ")))
+    (if (string-match "y" user-response)
+        (progn
+          (eval-slime `(goo:add-sentence ,buffer-contents))
+          (setq buffer-read-only t))
+      (message "Not adding this sentence!"))))
+
+(cl-defun lookup-goo-word (word &key parent-word parent-sentence)
   ""
   (eval-slime
-   `(goo:lookup-and-show-new-word ,word ,parent-word)))
+   `(goo:lookup-and-show-new-word ,word :parent-word ,parent-word :parent-sentence ,parent-sentence)))
 
 (defun lookup-goo-word-prompt ()
   ""
@@ -90,8 +100,10 @@ case. Running it gives some bullshit"
   (interactive "r")
   (let ((buffer (current-buffer))
         (goo-word (buffer-substring-no-properties start end)))
-    (cond ((match-goo-sentence-buffer buffer) (message (format "Looking up word from sentence %s" (match-string 1 (buffer-name buffer)))))
-          ((match-goo-word-buffer buffer) (lookup-goo-word goo-word (match-string 1 (buffer-name buffer))))
+    (cond ((match-goo-sentence-buffer buffer)
+           (lookup-goo-word goo-word :parent-sentence (buffer-substring-no-properties (point-min) (point-max))))
+          ((match-goo-word-buffer buffer)
+           (lookup-goo-word goo-word :parent-word (match-string 1 (buffer-name buffer))))
           (t (lookup-goo-word goo-word)))))
 
 (provide 'goo)

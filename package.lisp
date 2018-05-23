@@ -11,7 +11,9 @@
   (:use #:cl #:goo-page)
   (:export
    #:*words*
-   #:lookup-and-show-new-word))
+   #:*sentences*
+   #:lookup-and-show-new-word
+   #:add-sentence))
 
 
 

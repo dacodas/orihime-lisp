@@ -15,3 +15,11 @@ What was this for again, now?
 * TODO Ignore the /l-ol comments in definitions
 An example of these is the definition for 長い
 * TODO Are parent and child words working right now?
+* TODO How to relate sentence with words? 
+Should I implement this in both elisp and common lisp? 
+* TODO Adding sentence and then changing it later
+Should a change to the buffer just go through the whole structure of
+words and update them? I guess since there is only a sentence->word
+connection, that might suffice, eh?
+* TODO Sentence->word relationship isn't working
+I think this is the same issue as before with the friggin shizz
