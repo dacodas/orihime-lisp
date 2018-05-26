@@ -91,10 +91,10 @@
           (setf (goo-word-parents new-word) (cons (gethash parent-word *words*) (goo-word-parents new-word)))))
 
     (if parent-sentence
-        (let ((parent-sentence (gethash (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets parent-sentence)) *sentences*))))
-        (progn
-          (setf (goo-sentence-children parent-sentence)
-                (cons new-word (goo-sentence-children parent-sentence)))))
+        (let ((parent-sentence (gethash (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets parent-sentence)) *sentences*)))
+          (progn
+            (setf (goo-sentence-children parent-sentence)
+                  (cons new-word (goo-sentence-children parent-sentence))))))
 
     (swank::eval-in-emacs
      `(show-goo-word
