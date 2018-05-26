@@ -45,13 +45,26 @@
 (buffer-format-to-regexp goo-sentence-buffer-format)
 (buffer-format-to-regexp goo-word-buffer-format)
 
-(defun get-sentence-buffer-numbers ()
-  ""
-  (sort (cl-loop for buffer in
-                 (buffer-list)
-                 when (match-goo-sentence-buffer buffer)
-                 collect (string-to-number (match-string 1 (buffer-name buffer))))
-        '<))
+;; TODO: Need to add the related words to this information
+;; - Grab the sentence buffers
+;; - Show buffer-name, buffer contents, related words, beginning of
+;;   related word definitions
+(defun show-sentence-buffers ()
+  (string-join 
+   (mapcar 
+    (lambda (buffer) (format "%s: %s" (buffer-name buffer) (with-current-buffer buffer (buffer-substring-no-properties (point-min) (point-max)))))
+
+    (sort (cl-loop for buffer in
+                   (buffer-list)
+                   when (match-goo-sentence-buffer buffer)
+                   collect buffer)
+          (lambda (buffer1 buffer2)
+            (let ((buffer1-number (progn (match-goo-sentence-buffer buffer1)
+                                         (string-to-number (match-string 1 (buffer-name buffer1)))))
+                  (buffer2-number (progn (match-goo-sentence-buffer buffer2)
+                                         (string-to-number (match-string 1 (buffer-name buffer2))))))
+              (< buffer1-number buffer2-number)))))
+   "\n"))
 
 (defun new-sentence-buffer ()
   ""
