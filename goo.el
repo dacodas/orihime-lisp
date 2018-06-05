@@ -28,8 +28,8 @@
                           "\\1-regexp"
                           (format "%s" goo-buffer-format)))
         (regexp-value (replace-regexp-in-string
-                       "\\*\(.*\)-%s\\*"
-                       "\\\\*\\1-\\(.*\\)\\\\*"
+                       "\\*\\(.*\\)-%s\\*"
+                       "\\\\*\\1-\\\\(.*\\\\)\\\\*"
                        (symbol-value goo-buffer-format)))
         (predicate-name (replace-regexp-in-string
                           "\\(.*\\)-format"
@@ -39,32 +39,71 @@
             (defun ,(intern predicate-name) (buffer)
               (string-match ,(intern regexp-var-name) (buffer-name buffer))))))
 
-(defvar goo-sentence-buffer-format "*goo-sentence-%s*")
-(defvar goo-word-buffer-format "*goo-word-%s*")
+(defconst goo-sentence-buffer-format "*goo-sentence-%s*")
+(defconst goo-word-buffer-format "*goo-word-%s*")
 
 (buffer-format-to-regexp goo-sentence-buffer-format)
 (buffer-format-to-regexp goo-word-buffer-format)
 
-;; TODO: Need to add the related words to this information
-;; - Grab the sentence buffers
-;; - Show buffer-name, buffer contents, related words, beginning of
-;;   related word definitions
-(defun show-sentence-buffers ()
-  (string-join 
-   (mapcar 
-    (lambda (buffer) (format "%s: %s" (buffer-name buffer) (with-current-buffer buffer (buffer-substring-no-properties (point-min) (point-max)))))
+(defun get-sorted-sentence-buffers ()
+  (sort (cl-loop for buffer in
+		 (buffer-list)
+		 when (match-goo-sentence-buffer buffer)
+		 collect buffer)
+	(lambda (buffer1 buffer2)
+	  (let ((buffer1-number (progn (match-goo-sentence-buffer buffer1)
+				       (string-to-number (match-string 1 (buffer-name buffer1)))))
+		(buffer2-number (progn (match-goo-sentence-buffer buffer2)
+				       (string-to-number (match-string 1 (buffer-name buffer2))))))
+	    (< buffer1-number buffer2-number)))))
 
-    (sort (cl-loop for buffer in
-                   (buffer-list)
-                   when (match-goo-sentence-buffer buffer)
-                   collect buffer)
-          (lambda (buffer1 buffer2)
-            (let ((buffer1-number (progn (match-goo-sentence-buffer buffer1)
-                                         (string-to-number (match-string 1 (buffer-name buffer1)))))
-                  (buffer2-number (progn (match-goo-sentence-buffer buffer2)
-                                         (string-to-number (match-string 1 (buffer-name buffer2))))))
-              (< buffer1-number buffer2-number)))))
-   "\n"))
+(defun sentence-buffer-summary (buffer)
+  "Summarize sentence buffer for use with helm"
+  (let ((sentence-contents (with-current-buffer buffer (buffer-substring-no-properties (point-min) (point-max)))))
+    (message (format "%s:\n%s\n%s"
+		     (buffer-name buffer)
+		     sentence-contents
+		     (slime-eval `(cl-user::format
+				   nil "~{~12<~A~>: ~A...~^~%~}"
+				   (cl-user::apply
+				    (cl-user::function cl-user::append)
+				    (cl-user::mapcar
+				     (cl-user::lambda (word)
+						      (cl-user::list
+						       (goo::goo-word-reading word)
+						       (cl-user::subseq
+							(goo::simple-text-print word)
+							0 20)))
+				     (goo::goo-sentence-children
+				      (goo::sentence-from-string ,sentence-contents))))))))))
+
+(defun get-sentence-buffers-for-helm ()
+  (mapcar 
+   (lambda (buffer)
+     (cons (sentence-buffer-summary buffer) buffer))
+   (get-sorted-sentence-buffers)))
+
+;; TODO: All sentence buffers must have associated sentences in the hashtable of SBCL right now...
+;; TODO: This function allows me to very easily choose a sentence
+;; buffer with helm, but what I actually want (and was working on
+;; before) was a function that would just give me a high-level
+;; overview of the sentence and its relation to the unknown words in
+;; it. Is this better done in ELISP or Common Lisp? 
+(defun show-sentence-buffers ()
+  (let ((helm-source-goo-sentence-buffers `((name . "Goo sentence buffers")
+					    (candidates . ,(get-sentence-buffers-for-helm))
+					    (action . (lambda (candidate)
+							(switch-to-buffer (cdr (assoc candidate data)))))
+					    (multiline . 5))))
+
+    (helm :sources 'helm-source-goo-sentence-buffers)))
+
+(defun get-sentence-buffer-numbers ()
+  ""
+  (cl-loop for buffer in
+	   (buffer-list)
+	   when (match-goo-sentence-buffer buffer)
+	   collect (string-to-number (match-string 1 (buffer-name buffer)))))
 
 (defun new-sentence-buffer ()
   ""
@@ -82,11 +121,12 @@
 Note: I'm not entirely sure why slime-eval doesn't work in my
 case. Running it gives some bullshit"
   (let ((original-buffer (current-buffer))
-	(new-buffer-name (make-temp-name "*slime-eval*")))
+        (new-buffer-name (make-temp-name "*slime-eval*")))
     (switch-to-buffer new-buffer-name)
     (insert (format "%S" sexp))
-    (slime-eval-buffer)
-    (switch-to-buffer original-buffer)))
+    (let ((result (slime-eval-buffer)))
+      (switch-to-buffer original-buffer)
+      result)))
 
 (defun add-sentence (start end)
   (interactive "r")
@@ -121,5 +161,4 @@ case. Running it gives some bullshit"
 
 (provide 'goo)
 ;;; goo.el ends here
-
 
