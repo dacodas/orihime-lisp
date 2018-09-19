@@ -20,6 +20,17 @@
     :initform nil
     :accessor goo-sentence-source)))
 
+(defun insert-sentence (sentence)
+
+  (let* ((key (cl-base64:usb8-array-to-base64-string 
+               (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets (goo-sentence-contents sentence)))))
+         (document (cl-mongo:make-document :oid key)))
+
+    (cl-mongo:add-element "child-words" (mapcar #'goo-word-reading  (goo-sentence-children sentence)) document)
+    (cl-mongo:add-element "sentence-contents" (goo-sentence-contents sentence) document)
+    (cl-mongo:add-element "source" (goo-sentence-source sentence) document)
+    (cl-mongo:db.save "sentences" document)))
+
 (defclass goo-word ()
   ((reading
     :initarg :reading
@@ -34,6 +45,38 @@
    (child-words
     :initform nil
     :accessor goo-word-children)))
+
+;; We can check types using something like the following, taken from
+;; https://stackoverflow.com/questions/12556513/clos-how-to-make-a-slot-have-an-enforced-type-of-vector-of-symbols
+
+;; Further more, if we add type declarations to the slots we can use
+;; sb-mop:slot-definition-type to get the type 
+
+;; (defclass dacoda-test-class ()
+;;   ((test-slot
+;;     :initarg test-slot
+;;     :initform nil
+;;     :accessor test-slot)))
+
+;; (defmethod (setf test-slot) :before (new-value (dacoda-test-object dacoda-test-class))
+;;   (check-type new-value (unsigned-byte 8)))
+
+(defun insert-word (word)
+
+  (defun serialize (node)
+    (let ((output (make-string-output-stream)))
+      (plump:serialize node output)
+      (get-output-stream-string output)))
+  
+  (let ((document (cl-mongo:make-document :oid (goo-word-reading word))))
+    (cl-mongo:add-element "results-page" (serialize (slot-value word 'results-page)) document)
+    (cl-mongo:add-element "entry-page" (serialize (slot-value word 'entry-page)) document)
+    (cl-mongo:add-element "parent-words" (goo-word-parents word) document)
+    (cl-mongo:add-element "child-words" (goo-word-children word) document)
+    (cl-mongo:db.save "words" document)))
+
+(defun read-word (word-reading)
+  (cl-mongo:db.find "words" (cl-mongo:kv "_id" word-reading)))
 
 (defun sentence-from-string (string)
   (gethash (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets string)) *sentences*))
@@ -77,8 +120,6 @@
   (let ((new-word (make-instance 'goo-word :reading word)))
     (setf (gethash word *words*) new-word)
     (goo-word-fill new-word)))
-
-
 
 (defun plump-text-without-comments (node)
   "This is a copy of plump's text method without adding comments"

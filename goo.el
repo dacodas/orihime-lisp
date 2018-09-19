@@ -107,6 +107,7 @@
 
 (defun new-sentence-buffer ()
   ""
+  (interactive)
   (let ((available-number 1)
         (used-numbers (get-sentence-buffer-numbers)))
     (cl-loop while (eq available-number (car used-numbers))
