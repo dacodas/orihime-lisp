@@ -109,7 +109,7 @@
   ""
   (interactive)
   (let ((available-number 1)
-        (used-numbers (get-sentence-buffer-numbers)))
+        (used-numbers (sort (get-sentence-buffer-numbers) '<)))
     (cl-loop while (eq available-number (car used-numbers))
              do (progn
                   (cl-incf available-number)

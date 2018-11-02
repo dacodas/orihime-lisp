@@ -6,4 +6,4 @@
   :components ((:file "package")
 	       (:file "goo")
 	       (:file "goo-page"))
-  :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :ironclad :cl-base64 :cl-mongo))
+  :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :ironclad :cl-base64 :cl-mongo :swank))

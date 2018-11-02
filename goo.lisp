@@ -1,6 +1,17 @@
 (in-package :goo)
 
+;; I fail for this entry https://dictionary.goo.ne.jp/jn/236546/meaning/m0u/%E3%82%8D%E3%81%8F%E3%81%AB/
+
+;; Include the reading somewhere in the entry
+
+;; Add lookup-word-from-region-with-modification function for when the
+;; verb needs to be fixed or something
+
+;; Make for an easy way to add variants of words to the child words list
+
 (log:config :debug)
+
+(cl-mongo:db.use "goo")
 
 (defvar *sentences* 
     (make-hash-table :test #'equalp))
@@ -26,7 +37,7 @@
                (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets (goo-sentence-contents sentence)))))
          (document (cl-mongo:make-document :oid key)))
 
-    (cl-mongo:add-element "child-words" (mapcar #'goo-word-reading  (goo-sentence-children sentence)) document)
+    (cl-mongo:add-element "child-words" (goo-sentence-children sentence) document)
     (cl-mongo:add-element "sentence-contents" (goo-sentence-contents sentence) document)
     (cl-mongo:add-element "source" (goo-sentence-source sentence) document)
     (cl-mongo:db.save "sentences" document)))
@@ -46,6 +57,9 @@
     :initform nil
     :accessor goo-word-children)))
 
+(defun goo-word-title (goo-word)
+  (goo-page::title-prettify (goo-page::page-title (slot-value goo-word 'entry-page))))
+
 ;; We can check types using something like the following, taken from
 ;; https://stackoverflow.com/questions/12556513/clos-how-to-make-a-slot-have-an-enforced-type-of-vector-of-symbols
 
@@ -64,9 +78,11 @@
 (defun insert-word (word)
 
   (defun serialize (node)
-    (let ((output (make-string-output-stream)))
-      (plump:serialize node output)
-      (get-output-stream-string output)))
+    (if (not (equal node nil))
+        (let ((output (make-string-output-stream)))
+          (plump:serialize node output)
+          (get-output-stream-string output))
+        nil))
   
   (let ((document (cl-mongo:make-document :oid (goo-word-reading word))))
     (cl-mongo:add-element "results-page" (serialize (slot-value word 'results-page)) document)
@@ -144,19 +160,19 @@
 
     (if parent-word
         (progn
-          (setf (goo-word-children (gethash parent-word *words*)) (cons new-word (goo-word-children (gethash parent-word *words*))))
-          (setf (goo-word-parents new-word) (cons (gethash parent-word *words*) (goo-word-parents new-word)))))
+          (setf (goo-word-children (gethash parent-word *words*)) (cons word (goo-word-children (gethash parent-word *words*))))
+          (setf (goo-word-parents new-word) (cons parent-word (goo-word-parents new-word)))))
 
     (if parent-sentence
         (let ((parent-sentence (sentence-from-string parent-sentence)))
           (progn
             (setf (goo-sentence-children parent-sentence)
-                  (cons new-word (goo-sentence-children parent-sentence))))))
+                  (cons word (goo-sentence-children parent-sentence))))))
 
     (swank::eval-in-emacs
      `(show-goo-word
        ,word
-       ,(simple-text-print new-word)))))
+       ,(format nil "~a~%~%~a" (goo-word-title new-word) (simple-text-print new-word))))))
 
 ;; kotowaza section (for example
 ;; https://dictionary.goo.ne.jp/jn/31936/meaning/m0u/%E7%94%B7%E3%82%92%E7%A3%A8%E3%81%8F/)
@@ -170,3 +186,38 @@
 ;; 		  do (cond ((and (typep child 'plump::textual-node) (not (typep child 'plump::comment))) (write-string (plump::text child) stream)) 
 ;; 			   ((typep child 'plump::nesting-node) (r child))))))
 ;;       (r node))))
+
+;; (defun quick-serialize ()
+;;   (let ((record-format-string (format nil "~~{~~A~~^~A~~}" (code-char 31)))
+;;         (list-member-format-string (format nil "~~{~~A~~^~A~~}" (code-char 29))))
+
+;;     (with-open-file (sentence-output "/home/dacoda/.sentences"))
+
+;;     (maphash (lambda (hash sentence)
+;;                (format t record-format-string
+;;                        (list (goo-sentence-contents sentence)
+;;                              (format nil list-member-format-string (goo-sentence-children sentence))))
+
+;;                (format t "~A" (code-char 30)))
+;;              *sentences*)
+
+;;     (format t "~A" (code-char 28))
+
+;;     (maphash (lambda (hash word)
+;;                (format t record-format-string
+;;                        (list (goo-word-reading word)
+;;                              (format nil list-member-format-string (goo-word-children word))
+;;                              (format nil list-member-format-string (goo-word-parents word))))
+;;                (format t "~A" (code-char 30)))
+;;              *words*)
+
+;;     (format t "~A" (code-char 28))))
+
+(defun persist ()
+  (maphash (lambda (hash word)
+             (insert-word word))
+           *words*)
+  (maphash (lambda (hash sentence)
+             (insert-sentence sentence))
+           *sentences*))
+

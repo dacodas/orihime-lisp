@@ -1,0 +1,14 @@
+#!/bin/bash
+
+tee <<EOF > /tmp/test.js 
+conn = new Mongo();
+db = conn.getDB("goo");
+
+cursor = db.sentences.find();
+while ( cursor.hasNext() )
+{
+   printjson( cursor.next() );
+}
+EOF
+
+mongo --quiet /tmp/test.js | jq -r '"\nSENTENCE:\n" + (.["sentence-contents"]|tostring) + "\nCHILDREN:\n" + (.["child-words"]|tostring)'
