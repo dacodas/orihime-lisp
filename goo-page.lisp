@@ -68,7 +68,7 @@
 (defun entry-contents (entry)
   (lquery:$1 entry "div.contents_area div.contents"))
 
-(defun title-match-readings (title)
+(sdefun title-match-readings (title)
   (cl-ppcre:register-groups-bind
       (readings nil old-readings word)
       ("(.*?)(〔(.*?)〕)?【(.*?)】" (lquery-funcs:text title))
