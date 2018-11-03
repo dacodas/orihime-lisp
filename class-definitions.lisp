@@ -1,3 +1,5 @@
+(in-package :goo)
+
 ;; Definition can either be plain text or some sort of markup like
 ;; HTML or markdown
 (defclass text ()

@@ -1,3 +1,5 @@
+(in-package :goo)
+
 (defun results-paging (result-futures page-number)
   (multiple-value-bind (body status headers uri)
       (lparallel:force (aref result-futures page-number))

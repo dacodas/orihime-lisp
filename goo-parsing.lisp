@@ -1,20 +1,4 @@
-;; (in-package :goo-parsing)
-
-(ql:quickload '(lparallel cl-ppcre))
-
-(lquery:define-lquery-function text-without-comments (node)
-  (with-output-to-string (stream)
-    (labels ((r (node)
-               (loop for child across (plump::children node)
-		          do (cond ((and (typep child 'plump::textual-node) (not (typep child 'plump::comment))) (write-string (plump::text child) stream)) 
-			               ((typep child 'plump::nesting-node) (r child))))))
-      (r node))))
-
-(defparameter *max-number-of-result-pages-to-query* 50)
-(defparameter *user-agent* "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14")
-(defparameter *cookie-jar* (make-instance 'drakma:cookie-jar))
-(setf lparallel:*kernel* (lparallel:make-kernel 8))
-(log:config :debug)
+(in-package :goo)
 
 (defun fix-puri-uri (uri)
   (let ((uri-stream (make-string-output-stream)))
@@ -26,6 +10,23 @@
            (uri-unicode-string (babel:octets-to-string uri-octets)))
 
       uri-unicode-string)))
+
+(lquery:define-lquery-function text-without-comments (node)
+  (with-output-to-string (stream)
+    (labels ((r (node)
+               (loop for child across (plump::children node)
+		          do (cond ((and (typep child 'plump::textual-node) (not (typep child 'plump::comment))) (write-string (plump::text child) stream)) 
+			               ((typep child 'plump::nesting-node) (r child))))))
+      (r node))))
+
+(export 'lquery-funcs::text-without-comments :lquery-funcs)
+
+(defparameter *words* (make-hash-table :test #'equal))
+(defparameter *max-number-of-result-pages-to-query* 50)
+(defparameter *user-agent* "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14")
+(defparameter *cookie-jar* (make-instance 'drakma:cookie-jar))
+(setf lparallel:*kernel* (lparallel:make-kernel 8))
+(log:config :debug)
 
 (defun grab-goo-relative-page (relative-path)
   (drakma:http-request (concatenate 'string "https://dictionary.goo.ne.jp" relative-path)
@@ -94,7 +95,9 @@
         ((t (error "The returned URI from the response is unexpected: ~a" proper-uri)))))))
 
 (defun make-goo-word-to-study (reading)
-  (make-instance 'goo-word-to-study :reading reading))
+  (let ((new-word (make-instance 'goo-word-to-study :reading reading)))
+    (setf (gethash reading *words*) new-word)
+    new-word))
 
 (defun trim-and-replace-big-breaks (text)
   (let* ((big-breaks-removed (cl-ppcre:regex-replace-all "(?m)\\n{3,}" text (format nil "~%~%")))
@@ -148,5 +151,3 @@
 
     (setf (word-definition goo-word-to-study)
           (definition-from-goo-meaning-page (first entry-response)))))
-
-

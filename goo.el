@@ -8,6 +8,18 @@
 
 (setq slime-enable-evaluate-in-emacs t)
 
+(defclass word-to-study ()
+  ((reading
+    :initarg :reading
+    :accessor word-reading)
+   (definition
+     :initarg :definition
+     :accessor word-definition)))
+
+(defun get-word-from-slime (reading)
+
+  (make-instance 'word-to-study :reading ))
+
 (defun show-goo-word (word text)
   ""
     (switch-to-buffer (format "*goo-word-%s*" word))
