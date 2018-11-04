@@ -21,7 +21,8 @@
 
 (export 'lquery-funcs::text-without-comments :lquery-funcs)
 
-(defparameter *words* (make-hash-table :test #'equal))
+(defvar *words* (make-hash-table :test #'equal))
+(defvar *texts* (make-hash-table :test #'equalp))
 (defparameter *max-number-of-result-pages-to-query* 50)
 (defparameter *user-agent* "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14")
 (defparameter *cookie-jar* (make-instance 'drakma:cookie-jar))
@@ -94,10 +95,6 @@
          (values-list `(,(get-results-pages-futures response) :results-page)))
         ((t (error "The returned URI from the response is unexpected: ~a" proper-uri)))))))
 
-(defun make-goo-word-to-study (reading)
-  (let ((new-word (make-instance 'goo-word-to-study :reading reading)))
-    (setf (gethash reading *words*) new-word)
-    new-word))
 
 (defun trim-and-replace-big-breaks (text)
   (let* ((big-breaks-removed (cl-ppcre:regex-replace-all "(?m)\\n{3,}" text (format nil "~%~%")))
@@ -130,6 +127,11 @@
 
       (parse-integer (aref groups 0)))))
 
+(defun make-text (contents)
+  (let* ((hash (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents)))
+         (this-text (make-instance 'text :contents contents :id hash)))
+    (setf (gethash hash *texts*) this-text)))
+
 (defun fill-goo-word-to-study (goo-word-to-study)
   (let* ((reading (word-reading goo-word-to-study))
          (response (multiple-value-list (grab-goo-response reading))))
@@ -149,5 +151,26 @@
 
     (setf (slot-value goo-word-to-study 'goo-entry) this-goo-entry)
 
-    (setf (word-definition goo-word-to-study)
-          (definition-from-goo-meaning-page (first entry-response)))))
+    (let ((this-text (make-text (definition-from-goo-meaning-page (first entry-response)))))
+      (setf (word-definition goo-word-to-study) this-text))))
+
+(defun make-goo-word-to-study (reading)
+  (let ((new-word (make-instance 'goo-word-to-study :reading reading)))
+    (setf (gethash reading *words*) new-word)
+    new-word))
+
+(defun grab-or-make-word (reading)
+  (let ((hash-result (gethash reading *words*)))
+    (if hash-result 
+        hash-result
+        (make-goo-word-to-study reading))))
+
+(defun get-word-definition (reading)
+  (let* ((word (grab-or-make-word reading))
+         (definition-object (word-definition word)))
+    (if (not definition-object)
+        (progn
+          (fill-goo-word-to-study word)
+          (setf definition-object (word-definition word))))
+
+    (text-contents definition-object)))

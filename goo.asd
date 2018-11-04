@@ -7,6 +7,4 @@
                (:file "goo-results-paging")
 	           (:file "goo-parsing")
                (:file "class-definitions"))
-  :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :lparallel :cl-ppcre :swank
-                       ;; :ironclad :cl-base64 :cl-mongo
-                       ))
+  :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :lparallel :cl-ppcre :swank :ironclad :cl-base64 :cl-mongo))

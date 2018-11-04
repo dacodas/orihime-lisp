@@ -3,9 +3,15 @@
 ;; Definition can either be plain text or some sort of markup like
 ;; HTML or markdown
 (defclass text ()
-  ((text)
+  ((contents
+    :initarg :content
+    :initform nil
+    :reader text-contents)
    (child-words
-    :initarg :child-words)))
+    :initarg :child-words)
+   (id
+    :initarg :id
+    :reader text-id)))
 
 (defclass word-to-study ()
   ((reading
@@ -13,7 +19,8 @@
     :accessor word-reading)
    (definition
      :initarg :definition
-     :accessor word-definition)))
+     :accessor word-definition
+     :initform nil)))
 
 ;; These are meant to form the vector of child words within a sentence
 ;; or word-to-study. Meant to be shallow, ID's rather than substantial
