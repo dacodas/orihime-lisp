@@ -154,7 +154,7 @@
 
   (let* ((entry-response (multiple-value-list (determine-goo-word-meaning-page goo-word-to-study)))
          (this-goo-entry (make-instance 'goo-entry
-                                        :entry entry-response
+                                        :entry (make-array (length entry-response) :initial-contents entry-response)
                                         :entry-number (entry-number-from-response entry-response))))
 
     (setf (slot-value goo-word-to-study 'goo-entry) this-goo-entry)
@@ -182,7 +182,15 @@
   (word-definition (grab-or-make-word reading)))
 
 (defun add-child-word-to-child-words (child-word child-words)
-  (vector-push-extend child-word child-words 10))
+
+  (let ((index-of-already-present-child-word (loop for current-child-word across child-words
+                                                for index below (length child-words)
+                                                do (if (equal (word-reading child-word) (word-reading current-child-word))
+                                                       (return index)))))
+
+    (if index-of-already-present-child-word
+        (setf (aref child-words index-of-already-present-child-word) child-word)
+        (vector-push-extend child-word child-words 10))))
 
 (defun add-child-word-to-text (text-id reading ocurrence-in-text)
   (let ((this-word (grab-or-make-word reading))
@@ -195,4 +203,5 @@
                                         :end end)))
 
         (add-child-word-to-child-words child-word
-                                       (slot-value this-text 'child-words))))))
+                                       (slot-value this-text 'child-words))
+        t))))

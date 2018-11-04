@@ -30,11 +30,14 @@
     :initarg :reading
     :accessor word-reading
     :type (simple-array character))
+   (word-type
+    :initarg :type
+    :initform :unspecified)
    (definition
-     :initarg :definition
+       :initarg :definition
      :accessor word-definition
      :initform nil
-     :type (array child-word-in-context))))
+     :type definition-text)))
 
 ;; These are meant to form the vector of child words within a sentence
 ;; or word-to-study. Meant to be shallow, ID's rather than substantial
@@ -42,6 +45,7 @@
 (defclass child-word-in-context ()
   ((reading
     :initarg :word-reading
+    :reader word-reading
     :type (simple-array character))
    (start
     :initarg :start
@@ -76,4 +80,5 @@
   ((goo-search
     :reader goo-search)
    (goo-entry
-    :reader goo-entry)))
+    :reader goo-entry)
+   (word-type :initform :goo-word)))
