@@ -23,6 +23,8 @@
 
 (defvar *words* (make-hash-table :test #'equal))
 (defvar *texts* (make-hash-table :test #'equalp))
+(defvar *definitions* (make-array 10 :adjustable t :fill-pointer 0))
+
 (defparameter *max-number-of-result-pages-to-query* 50)
 (defparameter *user-agent* "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14")
 (defparameter *cookie-jar* (make-instance 'drakma:cookie-jar))
@@ -102,11 +104,12 @@
     trimmed))
 
 (defun definition-from-goo-meaning-page (body)
-  (let* ((definition-ugly (lquery:$1 (lquery:initialize body)
-                                     "div.meaning_area"
-                                     (lquery::text-without-comments)))
+  (let* ((title (lquery:$1 (initialize body)
+                           "div.basic_title h1" (text-without-comments)))
+         (definition-ugly (lquery:$1 (initialize body)
+                                     "div.meaning_area div.contents" (text-without-comments)))
          (definition-pretty (trim-and-replace-big-breaks definition-ugly)))
-    definition-pretty))
+    (format nil "~A~%~%~A" title definition-pretty)))
 
 ;; The goo-word-to-study should already have a proper goo-search
 ;; member
@@ -127,9 +130,14 @@
 
       (parse-integer (aref groups 0)))))
 
-(defun make-text (contents)
-  (let* ((hash (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents)))
-         (this-text (make-instance 'text :contents contents :id hash)))
+(defun make-definition (contents)
+  (let ((definition (make-text contents :type :definition)))
+    (vector-push-extend definition *definitions* 10)
+    definition))
+
+(defun make-text (contents &key (type :unspecified))
+  (let* ((hash (cl-base64:usb8-array-to-base64-string (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents))))
+         (this-text (make-instance 'text :contents contents :id hash :type type)))
     (setf (gethash hash *texts*) this-text)))
 
 (defun fill-goo-word-to-study (goo-word-to-study)
@@ -151,7 +159,7 @@
 
     (setf (slot-value goo-word-to-study 'goo-entry) this-goo-entry)
 
-    (let ((this-text (make-text (definition-from-goo-meaning-page (first entry-response)))))
+    (let ((this-text (make-definition (definition-from-goo-meaning-page (first entry-response)))))
       (setf (word-definition goo-word-to-study) this-text))))
 
 (defun make-goo-word-to-study (reading)
@@ -165,7 +173,10 @@
         hash-result
         (make-goo-word-to-study reading))))
 
-(defun get-word-definition (reading)
+(defun get-text-from-id (id)
+  (text-contents (gethash id *texts*)))
+
+(defun get-word-definition-id (reading)
   (let* ((word (grab-or-make-word reading))
          (definition-object (word-definition word)))
     (if (not definition-object)
@@ -173,4 +184,4 @@
           (fill-goo-word-to-study word)
           (setf definition-object (word-definition word))))
 
-    (text-contents definition-object)))
+    (text-id definition-object)))

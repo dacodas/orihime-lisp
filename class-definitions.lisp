@@ -4,14 +4,21 @@
 ;; HTML or markdown
 (defclass text ()
   ((contents
-    :initarg :content
+    :initarg :contents
     :initform nil
     :reader text-contents)
    (child-words
     :initarg :child-words)
    (id
     :initarg :id
-    :reader text-id)))
+    :reader text-id)
+   (type
+    :reader text-type
+    :initarg :type
+    :initform :unspecified)))
+
+(defclass definition-text (text)
+  ((type :initform :definition)))
 
 (defclass word-to-study ()
   ((reading
