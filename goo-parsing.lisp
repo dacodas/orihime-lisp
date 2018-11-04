@@ -167,21 +167,32 @@
     (setf (gethash reading *words*) new-word)
     new-word))
 
-(defun grab-or-make-word (reading)
+(defun grab-or-make-word (reading &optional (fill t))
   (let ((hash-result (gethash reading *words*)))
     (if hash-result 
         hash-result
-        (make-goo-word-to-study reading))))
+        (let ((new-word (make-goo-word-to-study reading)))
+          (if fill (fill-goo-word-to-study new-word))
+          new-word))))
 
 (defun get-text-from-id (id)
   (text-contents (gethash id *texts*)))
 
 (defun get-word-definition-id (reading)
-  (let* ((word (grab-or-make-word reading))
-         (definition-object (word-definition word)))
-    (if (not definition-object)
-        (progn
-          (fill-goo-word-to-study word)
-          (setf definition-object (word-definition word))))
+  (text-id (word-definition (grab-or-make-word reading))))
 
-    (text-id definition-object)))
+(defun add-child-word-to-child-words (child-word child-words)
+  (vector-push-extend child-word child-words 10))
+
+(defun add-child-word-to-text (text-id reading ocurrence-in-text)
+  (let ((this-word (grab-or-make-word reading))
+        (this-text (gethash text-id *texts*)))
+    (multiple-value-bind (start end)
+        (cl-ppcre:scan ocurrence-in-text (text-contents this-text))
+      (let ((child-word (make-instance 'child-word-in-context
+                                        :word-reading reading
+                                        :start start
+                                        :end end)))
+
+        (add-child-word-to-child-words child-word
+                                       (slot-value this-text 'child-words))))))

@@ -6,13 +6,18 @@
   ((contents
     :initarg :contents
     :initform nil
-    :reader text-contents)
+    :reader text-contents
+    :type (simple-array character))
    (child-words
-    :initarg :child-words)
+    :initarg :child-words
+    :initform (make-array 10 :element-type 'child-word :adjustable t :fill-pointer 0)
+    :reader text-child-words
+    :type (array child-word))
    (id
     :initarg :id
-    :reader text-id)
-   (type
+    :reader text-id
+    :type (simple-array character))
+   (text-type
     :reader text-type
     :initarg :type
     :initform :unspecified)))
@@ -37,10 +42,10 @@
      :initarg :word-reading)))
 
 (defclass child-word-in-context (child-word)
-  ((position
-    :initarg :position)
-   (length
-    :initarg :length)))
+  ((start
+    :initarg :start)
+   (end
+    :initarg :end)))
 
 (defun child-words-list-p (vector)
   (and (typep vector 'vector)
