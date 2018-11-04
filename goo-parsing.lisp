@@ -160,7 +160,7 @@
     (setf (slot-value goo-word-to-study 'goo-entry) this-goo-entry)
 
     (let ((this-text (make-definition (definition-from-goo-meaning-page (first entry-response)))))
-      (setf (word-definition goo-word-to-study) this-text))))
+      (setf (word-definition goo-word-to-study) (text-id this-text)))))
 
 (defun make-goo-word-to-study (reading)
   (let ((new-word (make-instance 'goo-word-to-study :reading reading)))
@@ -179,7 +179,7 @@
   (text-contents (gethash id *texts*)))
 
 (defun get-word-definition-id (reading)
-  (text-id (word-definition (grab-or-make-word reading))))
+  (word-definition (grab-or-make-word reading)))
 
 (defun add-child-word-to-child-words (child-word child-words)
   (vector-push-extend child-word child-words 10))

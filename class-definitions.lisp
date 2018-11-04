@@ -12,7 +12,7 @@
     :initarg :child-words
     :initform (make-array 10 :element-type 'child-word :adjustable t :fill-pointer 0)
     :reader text-child-words
-    :type (array child-word))
+    :type (array child-word-in-context))
    (id
     :initarg :id
     :reader text-id
@@ -28,24 +28,27 @@
 (defclass word-to-study ()
   ((reading
     :initarg :reading
-    :accessor word-reading)
+    :accessor word-reading
+    :type (simple-array character))
    (definition
      :initarg :definition
      :accessor word-definition
-     :initform nil)))
+     :initform nil
+     :type (array child-word-in-context))))
 
 ;; These are meant to form the vector of child words within a sentence
 ;; or word-to-study. Meant to be shallow, ID's rather than substantial
 ;; objects
-(defclass child-word ()
+(defclass child-word-in-context ()
   ((reading
-     :initarg :word-reading)))
-
-(defclass child-word-in-context (child-word)
-  ((start
-    :initarg :start)
+    :initarg :word-reading
+    :type (simple-array character))
+   (start
+    :initarg :start
+    :type integer)
    (end
-    :initarg :end)))
+    :initarg :end
+    :type integer)))
 
 (defun child-words-list-p (vector)
   (and (typep vector 'vector)
