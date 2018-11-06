@@ -33,7 +33,7 @@
        collect (word-reading (aref child-words index)))))
 
 (defun print-object-texty-boy (text stream)
-  (format stream "#<GOO-TEXT ~S \"~A...\" ~{~A~^, ~}>"
+  (format stream "#<GOO-TEXT ~S \"~A\" ~{~A~^, ~}>"
           (text-type text)
           (get-text-peek text)
           (get-text-child-words-peek text)))
@@ -69,6 +69,12 @@
    (end
     :initarg :end
     :type integer)))
+
+(defmethod print-object ((word child-word-in-context) stream)
+  (format stream "#<CHILD-WORD ~A ~A ~A>"
+          (word-reading word)
+          (slot-value word 'start)
+          (slot-value word 'end)))
 
 (defun child-words-list-p (vector)
   (and (typep vector 'vector)

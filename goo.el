@@ -3,11 +3,32 @@
 ;; All of these emacs functions should be completely agnostic to the
 ;; GOO underpinnings and should only work through the words interface
 
+(setq *text-buffer-format* "*text-%s*")
+(setq *text-buffer-regex* "\\*text-\\(.*\\)\\*")
+
+(defun kill-buffer-text-id ()
+  (interactive)
+  (kill-new (get-buffer-text-id (buffer-name))))
+
+(defun get-buffer-text-id (buffer-name)
+  (interactive "b")
+  (string-match *text-buffer-regex* buffer-name)
+  (message (match-string-no-properties 1 buffer-name)))
+
+(defun add-text-from-buffer ()
+  (interactive)
+  (let* ((text-contents (buffer-substring-no-properties (point-min) (point-max)))
+         (text-id (slime-eval `(goo::text-id (goo::make-text ,text-contents)))))
+    (switch-to-buffer (format *text-buffer-format* text-id))
+    (insert text-contents)
+    (setq buffer-read-only t)
+    (goto-char (point-min))))
+
 (defun show-goo-word (word)
   ""
   (slime-eval-async `(goo::get-word-definition-id ,word)
     (lambda (definition-text-id)
-      (let ((word-buffer-name (format "*text-%s*" definition-text-id))
+      (let ((word-buffer-name (format *text-buffer-format* definition-text-id))
             (definition (slime-eval `(goo::get-text-from-id ,definition-text-id))))
         (switch-to-buffer word-buffer-name)
         (erase-buffer)
@@ -23,9 +44,7 @@
          (reading (if modify-text
                       (read-string "Sequence to lookup: " ocurrence)
                     ocurrence))
-         (text-id (let ((this-buffer-name (buffer-name)))
-                    (string-match "\\*text-\\(.*\\)\\*" this-buffer-name)
-                    (match-string-no-properties 1 this-buffer-name))))
+         (text-id (get-buffer-text-id (buffer-name))))
     (if text-id
         (progn
           (message "Getting text for %s" text-id)
