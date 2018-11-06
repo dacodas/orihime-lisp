@@ -47,4 +47,4 @@
      do (cl-mongo:db.save "words" (serialize-for-mongo value)))
   (loop for k being the hash-keys of *texts*
      using (hash-value value)
-     do (cl-mongo:db.save "words" (serialize-for-mongo value))))
+     do (cl-mongo:db.save "texts" (serialize-for-mongo value))))

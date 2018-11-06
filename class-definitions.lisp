@@ -19,19 +19,35 @@
     :type (simple-array character))
    (text-type
     :reader text-type
-    :initarg :type
+    :initarg :text-type
     :initform :unspecified)))
+
+(defun get-text-peek (text)
+  (let* ((contents (text-contents text))
+         (peek (subseq contents 0 (min 10 (length contents)))))
+    (trim-and-replace-big-breaks peek)))
+
+(defun get-text-child-words-peek (text)
+  (let ((child-words (text-child-words text)))
+    (loop for index below (min 5 (length child-words))
+       collect (word-reading (aref child-words index)))))
+
+(defun print-object-texty-boy (text stream)
+  (format stream "#<GOO-TEXT ~S \"~A...\" ~{~A~^, ~}>"
+          (text-type text)
+          (get-text-peek text)
+          (get-text-child-words-peek text)))
 
 (defclass definition-text (text)
   ((type :initform :definition)))
 
 (defclass word-to-study ()
-  ((reading
-    :initarg :reading
+  ((word-reading
+    :initarg :word-reading
     :accessor word-reading
     :type (simple-array character))
    (word-type
-    :initarg :type
+    :initarg :word-type
     :initform :unspecified)
    (definition
        :initarg :definition
@@ -43,7 +59,7 @@
 ;; or word-to-study. Meant to be shallow, ID's rather than substantial
 ;; objects
 (defclass child-word-in-context ()
-  ((reading
+  ((word-reading
     :initarg :word-reading
     :reader word-reading
     :type (simple-array character))

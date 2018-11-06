@@ -131,13 +131,13 @@
       (parse-integer (aref groups 0)))))
 
 (defun make-definition (contents)
-  (let ((definition (make-text contents :type :definition)))
+  (let ((definition (make-text contents :text-type :definition)))
     (vector-push-extend definition *definitions* 10)
     definition))
 
-(defun make-text (contents &key (type :unspecified))
+(defun make-text (contents &key (text-type :unspecified))
   (let* ((hash (cl-base64:usb8-array-to-base64-string (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents))))
-         (this-text (make-instance 'text :contents contents :id hash :type type)))
+         (this-text (make-instance 'text :contents contents :id hash :text-type text-type)))
     (setf (gethash hash *texts*) this-text)))
 
 (defun fill-goo-word-to-study (goo-word-to-study)
@@ -163,7 +163,7 @@
       (setf (word-definition goo-word-to-study) (text-id this-text)))))
 
 (defun make-goo-word-to-study (reading)
-  (let ((new-word (make-instance 'goo-word-to-study :reading reading)))
+  (let ((new-word (make-instance 'goo-word-to-study :word-reading reading)))
     (setf (gethash reading *words*) new-word)
     new-word))
 
