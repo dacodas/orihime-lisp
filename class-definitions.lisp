@@ -23,9 +23,10 @@
     :initform :unspecified)))
 
 (defun get-text-peek (text)
-  (let* ((contents (text-contents text))
-         (peek (subseq contents 0 (min 10 (length contents)))))
-    (trim-and-replace-big-breaks peek)))
+  (format nil "~A..."
+          (let* ((contents (text-contents text))
+                 (peek (subseq contents 0 (min 10 (length contents)))))
+            (trim-and-replace-big-breaks peek))))
 
 (defun get-text-child-words-peek (text)
   (let ((child-words (text-child-words text)))

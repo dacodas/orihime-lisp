@@ -3,6 +3,12 @@
 \usepackage{xeCJK}
 \setCJKmainfont{Source Han Serif}
 
+%% https://tex.stackexchange.com/questions/388060/how-to-get-paragraph-breaks-in-a-standalone-document
+\usepackage{calc}
+\makeatletter
+\g@addto@macro{\@parboxrestore}{\parskip=\baselineskip}
+\makeatother
+
 \begin{document}
 
 {{content}}
