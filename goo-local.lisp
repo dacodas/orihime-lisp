@@ -1,4 +1,4 @@
-(in-package :goo)
+(in-package :orihime)
 
 (defparameter *goo-trie-socket* (usocket:socket-connect "localhost" 7081))
 (defparameter *goo-local-cache* #P"/home/dacoda/projects/goo-processing/dictionary-entries/")

@@ -1,4 +1,4 @@
-(defpackage :goo
+(defpackage :orihime
   (:use #:cl)
   (:export
    #:*words*

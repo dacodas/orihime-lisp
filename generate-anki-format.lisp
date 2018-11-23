@@ -1,4 +1,4 @@
-(in-package :goo)
+(in-package :orihime)
 
 (cl-mongo:db.use "totally-new")
 

@@ -1,4 +1,4 @@
-(in-package :goo)
+(in-package :orihime)
 
 (ql:quickload '(cl-containers cl-graph))
 

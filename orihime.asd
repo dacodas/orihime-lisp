@@ -1,12 +1,12 @@
-;;;; goo.asd
+;;;; orihime.asd
 
-(asdf:defsystem goo
-  :description "Lispy interface to dictionary.goo.ne.jp"
+(asdf:defsystem orihime
+  :description "Lispy word webs"
   :serial t
   :components ((:file "package")
-               (:file "goo-results-paging")
-	           (:file "goo-parsing")
+               (:file "orihime-results-paging")
+	           (:file "orihime-parsing")
                (:file "class-definitions")
                (:file "cl-mongo-document-printing")
-               (:file "goo-serialization"))
+               (:file "orihime-serialization"))
   :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :lparallel :cl-ppcre :swank :ironclad :cl-base64 :cl-mongo))

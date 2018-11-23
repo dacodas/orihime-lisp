@@ -1,4 +1,4 @@
-(in-package :goo)
+(in-package :orihime)
 
 (defun make-document-from-class (object &optional (oid nil))
   (let ((document (cl-mongo:make-document :oid oid))

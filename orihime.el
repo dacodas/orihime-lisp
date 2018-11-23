@@ -18,7 +18,7 @@
 (defun add-text-from-buffer ()
   (interactive)
   (let* ((text-contents (buffer-substring-no-properties (point-min) (point-max)))
-         (text-id (slime-eval `(goo::text-id (goo::make-text ,text-contents)))))
+         (text-id (slime-eval `(orihime::text-id (orihime::make-text ,text-contents)))))
     (switch-to-buffer (format *text-buffer-format* text-id))
     (insert text-contents)
     (setq buffer-read-only t)
@@ -26,10 +26,10 @@
 
 (defun show-goo-word (word)
   ""
-  (slime-eval-async `(goo::get-word-definition-id ,word)
+  (slime-eval-async `(orihime::get-word-definition-id ,word)
     (lambda (definition-text-id)
       (let ((word-buffer-name (format *text-buffer-format* definition-text-id))
-            (definition (slime-eval `(goo::get-text-from-id ,definition-text-id))))
+            (definition (slime-eval `(orihime::get-text-from-id ,definition-text-id))))
         (switch-to-buffer word-buffer-name)
         (erase-buffer)
         (insert definition)
@@ -48,7 +48,7 @@
     (if text-id
         (progn
           (message "Getting text for %s" text-id)
-          (slime-eval-async `(goo::add-child-word-to-text ,text-id ,reading ,ocurrence)
+          (slime-eval-async `(orihime::add-child-word-to-text ,text-id ,reading ,ocurrence)
             `(lambda (result) (show-goo-word ,reading))))
       (show-goo-word reading))))
 

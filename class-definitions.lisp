@@ -1,4 +1,4 @@
-(in-package :goo)
+(in-package :orihime)
 
 ;; Definition can either be plain text or some sort of markup like
 ;; HTML or markdown
@@ -105,3 +105,55 @@
    (goo-entry
     :reader goo-entry)
    (word-type :initform :goo-word)))
+
+(defun make-definition (contents)
+  (let ((definition (make-text contents :text-type :definition)))
+    (vector-push-extend definition *definitions* 10)
+    definition))
+
+(defun make-text (contents &key (text-type :unspecified))
+  (let* ((hash (cl-base64:usb8-array-to-base64-string (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents))))
+         (this-text (make-instance 'text :contents contents :id hash :text-type text-type)))
+    (setf (gethash hash *texts*) this-text)))
+
+
+
+(defun get-text-from-id (id)
+  (text-contents (gethash id *texts*)))
+
+(defun get-word-definition-id (reading)
+  (word-definition (grab-or-make-word reading)))
+
+(defun add-child-word-to-child-words (child-word child-words)
+
+  (let ((index-of-already-present-child-word (loop for current-child-word across child-words
+                                                for index below (length child-words)
+                                                do (if (equal (word-reading child-word) (word-reading current-child-word))
+                                                       (return index)))))
+
+    (if index-of-already-present-child-word
+        (setf (aref child-words index-of-already-present-child-word) child-word)
+        (vector-push-extend child-word child-words 10))))
+
+(defun add-child-word-to-text (text-id reading ocurrence-in-text)
+  (let ((this-word (grab-or-make-word reading))
+        (this-text (gethash text-id *texts*)))
+    (multiple-value-bind (start end)
+        (cl-ppcre:scan ocurrence-in-text (text-contents this-text))
+      (let ((child-word (make-instance 'child-word-in-context
+                                        :word-reading reading
+                                        :start start
+                                        :end end)))
+
+        (add-child-word-to-child-words child-word
+                                       (slot-value this-text 'child-words))
+        t))))
+
+;; Modify this so that it can use whatever backend you need
+(defun grab-or-make-word (reading &optional (fill t))
+  (let ((hash-result (gethash reading *words*)))
+    (if hash-result 
+        hash-result
+        (let ((new-word (make-goo-word-to-study reading)))
+          (if fill (fill-goo-word-to-study new-word))
+          new-word))))
