@@ -4,9 +4,12 @@
   :description "Lispy word webs"
   :serial t
   :components ((:file "package")
-               (:file "orihime-results-paging")
-	           (:file "orihime-parsing")
-               (:file "class-definitions")
+               (:file "goo-results-paging")
+	           (:file "goo-utils")
+               (:file "goo-web")
+               ;; (:file "graphs")
                (:file "cl-mongo-document-printing")
-               (:file "orihime-serialization"))
-  :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :lparallel :cl-ppcre :swank :ironclad :cl-base64 :cl-mongo))
+               (:file "serialization")
+               (:file "class-definitions"))
+  :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :lparallel :cl-ppcre :swank :ironclad :cl-base64 :cl-mongo
+                       :cl-containers :cl-graph :cl-mustache))

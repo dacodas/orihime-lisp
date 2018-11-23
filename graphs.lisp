@@ -1,11 +1,9 @@
 (in-package :orihime)
 
-(ql:quickload '(cl-containers cl-graph))
-
 (defparameter *current-graph-words* nil)
 (defparameter *output-root-directory* (make-pathname :directory "tmp"))
 (defparameter *latex-template-file* (merge-pathnames (make-pathname :name "latex-template.tex" :type "mustache")
-                                                     (asdf:system-source-directory :goo)))
+                                                     (asdf:system-source-directory :orihime)))
 (defparameter *text-id-contents-file-name-format* "~A-contents")
 (defparameter *output-directory* nil)
 (defparameter *word-names* nil)
