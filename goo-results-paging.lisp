@@ -65,7 +65,7 @@
            anchor)
        collect 
          (let ((text-peek (subseq meaning-text 0 (min (length meaning-text) 40))))
-           (format nil "~A：~A...~%"
+           (format nil "~A：~A..."
                    title
                    text-peek)))))
 
@@ -88,7 +88,7 @@
                       (entry-file-contents (goo-local-page-from-cache entry-number))
                       (definition (definition-from-goo-meaning-page entry-file-contents))
                       (peek (subseq definition 0 (min 20 (length definition)))))
-                 (format t "~A...~%" (cl-ppcre:regex-replace-all "(?m)\\n" peek ""))))))
+                 (format nil "~A..." (cl-ppcre:regex-replace-all "(?m)\\n" peek ""))))))
 
 (defmethod search-results-select-result ((search-results goo-local-results) page-number selection-number)
 
@@ -102,8 +102,8 @@
   (with-open-file (entry-file (merge-pathnames (make-pathname :name (write-to-string entry-number) :type "html")
                                                *goo-local-cache*))
     (let ((entry-file-contents (make-array (file-length entry-file) :element-type 'character)))
-      (read-sequence entry-file-contents entry-file :end (file-length entry-file)))
-    entry-file-contents))
+      (read-sequence entry-file-contents entry-file :end (file-length entry-file))
+      entry-file-contents)))
 
 (defun attempt-page (search-results new-page-number old-page-number)
   (if (and (<= new-page-number (search-results-number-of-pages search-results))
@@ -113,8 +113,8 @@
         (format t "That page number isn't valid...~%")
         (results-paging search-results old-page-number))))
 
-(defun results-paging (search-results page-number)
-  (let ((current-page-results (search-results-page search-results)))
+(defun results-paging (search-results &optional (page-number 0))
+  (let ((current-page-results (search-results-page-list search-results page-number)))
     (format t "Showing results for page ~A~%~%" page-number)
 
     (loop for result in current-page-results
@@ -129,10 +129,10 @@
       (cond ((equal user-input "n") (attempt-page search-results (1+ page-number) page-number))
             ((equal user-input "p") (attempt-page search-results (1- page-number) page-number))
             (t (handler-case (let ((parsed-integer (parse-integer user-input)))
-                               (if (and (>= parsed-integer 0) (< parsed-integer (length list-titles-and-mean-texts)))
+                               (if (and (>= parsed-integer 0) (< parsed-integer (search-results-number-of-pages search-results)))
                                    (progn
                                      (format t "Going to selection ~A~%" parsed-integer)
-                                     (search-results-select-result page-number parsed-integer))
+                                     (search-results-select-result search-results page-number parsed-integer))
                                    (progn
                                      (format t "That number is too large or too small~%")
                                      (results-paging search-results page-number)))) 

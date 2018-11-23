@@ -4,9 +4,10 @@
   :description "Lispy word webs"
   :serial t
   :components ((:file "package")
-               (:file "goo-results-paging")
 	           (:file "goo-utils")
                (:file "goo-web")
+               (:file "goo-local")
+               (:file "goo-results-paging")
                ;; (:file "graphs")
                (:file "cl-mongo-document-printing")
                (:file "serialization")
