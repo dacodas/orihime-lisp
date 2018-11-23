@@ -2,7 +2,8 @@
   (:use #:cl)
   (:export
    #:*words*
-   #:*sentences*))
+   #:*sentences*
+   #:entry-number-from-response))
 
 
 

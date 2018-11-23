@@ -121,14 +121,30 @@
       (:results-page (results-paging (goo-search-results this-goo-search) 0))
       (t (error "It is not possible to get a word meaning page from result with type ~A" result-type)))))
 
+(define-condition entry-number-parse-error (error)
+  ((uri :initarg :uri :reader uri))
+  (:report
+   (lambda (condition stream)
+     (format stream
+             "Could not parse an entry number from the URI ~A"
+             (uri condition)))))
+
 (defun entry-number-from-response (response)
   (multiple-value-bind (x y z uri)
       (values-list response)
 
-    (multiple-value-bind (full-match groups)
-        (cl-ppcre:scan-to-strings ".*jn/\([0-9]+\)/meaning.*" (fix-puri-uri uri))
+    (let ((potential-matching-regexes (list ".*jn/\([0-9]+\)/meaning.*"
+                                            ".*word/.*/#jn-\([0-9]+\)")))
 
-      (parse-integer (aref groups 0)))))
+      (let ((regex-match
+             (loop for regex in potential-matching-regexes
+                for (full-match groups) = (multiple-value-list (cl-ppcre:scan-to-strings regex (fix-puri-uri uri)))
+                when (not (null full-match))
+                do (return (aref groups 0)))))
+
+        (if (null regex-match)
+            (error 'entry-number-parse-error :uri (fix-puri-uri uri))
+            (parse-integer regex-match))))))
 
 (defun make-definition (contents)
   (let ((definition (make-text contents :text-type :definition)))
