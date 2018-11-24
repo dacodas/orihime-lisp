@@ -16,26 +16,10 @@
 
       uri-unicode-string)))
 
-(lquery:define-lquery-function text-without-comments (node)
-  (with-output-to-string (stream)
-    (labels ((r (node)
-               (loop for child across (plump::children node)
-		          do (cond ((and (typep child 'plump::textual-node) (not (typep child 'plump::comment))) (write-string (plump::text child) stream)) 
-			               ((typep child 'plump::nesting-node) (r child))))))
-      (r node))))
-
-(export 'lquery-funcs::text-without-comments :lquery-funcs)
-
 (defun grab-goo-relative-page (relative-path)
   (drakma:http-request (concatenate 'string "https://dictionary.goo.ne.jp" relative-path)
                        :user-agent *user-agent* 
                        :cookie-jar *cookie-jar*))
-
-(defun grab-goo-response (word)
-  (drakma:http-request (concatenate 'string "https://dictionary.goo.ne.jp/srch/jn/" (do-urlencode:urlencode word) "/m0u/")
-                       :user-agent *user-agent* 
-                       :cookie-jar *cookie-jar*))
-
 
 (defun get-number-of-results-pages (results-page-dom)
   (let* ((list-items (lquery:$ results-page-dom "div.nav-paging ol.nav-paging-in li"))
@@ -44,7 +28,6 @@
           (t (let* ((last-numbered-list-item (aref list-items (- number-of-list-items 2)))
                     (last-number (parse-integer (lquery:$1 last-numbered-list-item (lquery-funcs:text)))))
                last-number)))))
-
 
 (defun get-results-page-url (first-results-page-url page-number)
   (let ((uri-stream (make-string-output-stream)))
@@ -64,7 +47,8 @@
                                                        :cookie-jar *cookie-jar*))))))
 
 (defun get-results-pages-futures (response)
-  (multiple-value-bind (body status headers uri) (values-list response)
+  (multiple-value-bind (body status headers uri)
+      (values-list response)
     (let* ((dom (lquery:$ (lquery:initialize body)))
            (number-of-results-pages (get-number-of-results-pages dom))
            (result-futures (make-array (min number-of-results-pages *max-number-of-result-pages-to-query*) :initial-element nil)))
@@ -76,44 +60,15 @@
 
       result-futures)))
 
-;; This should return multiple values
-;; 1. A vector of futures representing the pages of the response
-;; 2. A keyword specifying the type of response we got
-;;
-;; NOTE: The response passed in here is FOR SOME REASON a list instead
-;; of multiple values... maybe that's the only way to do it
-(defun parse-response (response)
-  (multiple-value-bind (body status headers uri) (values-list response)
+(defun goo-web-search (reading)
+  (multiple-value-bind (body status headers uri)
+      (drakma:http-request (concatenate 'string "https://dictionary.goo.ne.jp/srch/jn/" (do-urlencode:urlencode reading) "/m0u/")
+                           :user-agent *user-agent* 
+                           :cookie-jar *cookie-jar*)
     (let ((proper-uri (fix-puri-uri uri)))
       (cond
         ((search "meaning" proper-uri)
-         (let ((result-futures `#(,(lparallel:future (values-list response)))))
-           (values-list `(,result-futures :meaning))))
+         body)
         ((search "srch" proper-uri)
-         (values-list `(,(get-results-pages-futures response) :results-page)))
+         (results-paging (make-instance 'goo-web-results :results (get-results-pages-futures (list body status headers uri)))))
         ((t (error "The returned URI from the response is unexpected: ~a" proper-uri)))))))
-
-(define-condition entry-number-parse-error (error)
-  ((uri :initarg :uri :reader uri))
-  (:report
-   (lambda (condition stream)
-     (format stream
-             "Could not parse an entry number from the URI ~A"
-             (uri condition)))))
-
-(defun entry-number-from-response (response)
-  (multiple-value-bind (x y z uri)
-      (values-list response)
-
-    (let ((potential-matching-regexes (list ".*jn/\([0-9]+\)/meaning.*"
-                                            ".*word/.*/#jn-\([0-9]+\)")))
-
-      (let ((regex-match
-             (loop for regex in potential-matching-regexes
-                for (full-match groups) = (multiple-value-list (cl-ppcre:scan-to-strings regex (fix-puri-uri uri)))
-                when (not (null full-match))
-                do (return (aref groups 0)))))
-
-        (if (null regex-match)
-            (error 'entry-number-parse-error :uri (fix-puri-uri uri))
-            (parse-integer regex-match))))))

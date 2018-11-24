@@ -86,8 +86,8 @@
        collect (let* ((result (aref results selection-number))
                       (entry-number (aref result 1))
                       (entry-file-contents (goo-local-page-from-cache entry-number))
-                      (definition (definition-from-goo-meaning-page entry-file-contents))
-                      (peek (subseq definition 0 (min 20 (length definition)))))
+                      (definition (goo-definition-from-meaning-page entry-file-contents))
+                      (peek (subseq definition 0 (min 40 (length definition)))))
                  (format nil "~A..." (cl-ppcre:regex-replace-all "(?m)\\n" peek ""))))))
 
 (defmethod search-results-select-result ((search-results goo-local-results) page-number selection-number)

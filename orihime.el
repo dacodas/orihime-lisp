@@ -1,8 +1,5 @@
 (setq slime-enable-evaluate-in-emacs t)
 
-;; All of these emacs functions should be completely agnostic to the
-;; GOO underpinnings and should only work through the words interface
-
 (setq *text-buffer-format* "*text-%s*")
 (setq *text-buffer-regex* "\\*text-\\(.*\\)\\*")
 
@@ -12,8 +9,8 @@
 
 (defun get-buffer-text-id (buffer-name)
   (interactive "b")
-  (string-match *text-buffer-regex* buffer-name)
-  (message (match-string-no-properties 1 buffer-name)))
+  (if (string-match *text-buffer-regex* buffer-name)
+      (message (match-string-no-properties 1 buffer-name))))
 
 (defun add-text-from-buffer ()
   (interactive)
@@ -24,9 +21,9 @@
     (setq buffer-read-only t)
     (goto-char (point-min))))
 
-(defun show-goo-word (word)
+(defun orihime-show-word (word)
   ""
-  (slime-eval-async `(orihime::get-word-definition-id ,word)
+  (slime-eval-async `(orihime::word-definition-text-id ,word)
     (lambda (definition-text-id)
       (let ((word-buffer-name (format *text-buffer-format* definition-text-id))
             (definition (slime-eval `(orihime::get-text-from-id ,definition-text-id))))
@@ -37,10 +34,9 @@
         (text-scale-set 4)
         (goto-char (point-min))))))
 
-(defun show-goo-word-from-region (start end &optional modify-text)
+(defun orihime-show-word-from-region (start end &optional modify-text)
   (interactive "r")
-  (let* ((buffer (current-buffer))
-         (ocurrence (buffer-substring-no-properties start end))
+  (let* ((ocurrence (buffer-substring-no-properties start end))
          (reading (if modify-text
                       (read-string "Sequence to lookup: " ocurrence)
                     ocurrence))
@@ -49,9 +45,9 @@
         (progn
           (message "Getting text for %s" text-id)
           (slime-eval-async `(orihime::add-child-word-to-text ,text-id ,reading ,ocurrence)
-            `(lambda (result) (show-goo-word ,reading))))
-      (show-goo-word reading))))
+            `(lambda (result) (orihime-show-word ,reading))))
+      (orihime-show-word reading))))
 
-(defun show-goo-word-from-region-and-modify (start end)
+(defun orihime-show-word-from-region-and-modify (start end)
   (interactive "r")
-  (show-goo-word-from-region start end t))
+  (orihime-show-word-from-region start end t))

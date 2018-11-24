@@ -1,5 +1,12 @@
 (in-package :orihime)
 
+(log:config :debug)
+
+(defvar *words* (make-hash-table :test #'equal))
+(defvar *texts* (make-hash-table :test #'equalp))
+(defvar *definitions* (make-array 10 :adjustable t :fill-pointer 0))
+(defparameter *current-backend* :goo-local)
+
 ;; Definition can either be plain text or some sort of markup like
 ;; HTML or markdown
 (defclass text ()
@@ -94,8 +101,8 @@
 (defun get-text-from-id (id)
   (text-contents (gethash id *texts*)))
 
-(defun get-word-definition-id (reading)
-  (word-definition (grab-or-make-word reading)))
+(defun word-definition-text-id (reading)
+  (word-definition (add-word reading)))
 
 (defun add-child-word-to-child-words (child-word child-words)
 
@@ -109,7 +116,7 @@
         (vector-push-extend child-word child-words 10))))
 
 (defun add-child-word-to-text (text-id reading ocurrence-in-text)
-  (let ((this-word (grab-or-make-word reading))
+  (let ((this-word (add-word reading))
         (this-text (gethash text-id *texts*)))
     (multiple-value-bind (start end)
         (cl-ppcre:scan ocurrence-in-text (text-contents this-text))
@@ -122,45 +129,22 @@
                                        (slot-value this-text 'child-words))
         t))))
 
-;; Modify this so that it can use whatever backend you need
-(defun grab-or-make-word (reading &optional (fill t))
+(defun search-for-word (reading)
   (let ((hash-result (gethash reading *words*)))
-    (if hash-result 
+    (if hash-result
         hash-result
-        (let ((new-word (make-goo-word-to-study reading)))
-          (if fill (fill-goo-word-to-study new-word))
+        (add-new-word reading))))
 
+(defun find-definition-from-backend (reading)
+  (case *current-backend*
+    (:goo-web (goo-definition-from-meaning-page (goo-web-search reading)))
+    (:goo-local (goo-definition-from-meaning-page (goo-local-search reading)))))
 
-
-
-
-
-
-
-
-
-(defclass goo-search ()
-  ((search-term
-    :initarg :search-term)
-   (results 
-    :initarg :results
-    :reader goo-search-results)
-   (result-type
-    :initarg :result-type
-    :reader goo-result-type)))
-
-(defclass goo-entry ()
-  ((entry-number
-    :initarg :entry-number
-    :reader goo-word-entry-number)
-   (entry ;; This would be the response of the entry request
-    :initarg :entry
-    :reader goo-word-entry)))
-
-(defclass goo-word-to-study (word-to-study)
-  ((goo-search
-    :reader goo-search)
-   (goo-entry
-    :reader goo-entry)
-   (word-type :initform :goo-word)))
-          new-word))))
+(defun add-word (reading)
+  (let* ((definition-text-string (find-definition-from-backend reading))
+         (definition (make-definition definition-text-string))
+         (definition-id (text-id definition))
+         (word (make-instance 'word-to-study
+                              :word-reading reading
+                              :definition definition-id)))
+    (setf (gethash reading *words*) word)))

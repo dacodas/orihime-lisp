@@ -3,7 +3,7 @@
 (defparameter *goo-trie-socket* (usocket:socket-connect "localhost" 7081))
 (defparameter *goo-local-cache* #P"/home/dacoda/projects/goo-processing/dictionary-entries/")
 
-(defun lookup-word-local (reading)
+(defun goo-local-search (reading)
 
   (let ((stream (usocket:socket-stream *goo-trie-socket*)))
     (format stream "LEMMEKNOW ~A" reading)
@@ -16,4 +16,4 @@
                    (multiple-value-bind (buffer length peer-address)
                        (sb-bsd-sockets:socket-receive (usocket:socket *goo-trie-socket*) input-buffer nil)
                      (read-from-string (sb-ext:octets-to-string buffer))))))
-    results))
+    (results-paging (make-instance 'goo-local-results :results results))))
