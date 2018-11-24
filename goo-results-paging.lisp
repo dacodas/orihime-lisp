@@ -42,7 +42,7 @@
     (length (search-results-sic search-results)))
 
 (defmethod search-results-page-list ((search-results goo-web-results) page-number)
-  (let* ((body (first (multiple-value-list (lparallel:force (aref result-futures page-number)))))
+  (let* ((body (first (multiple-value-list (lparallel:force (aref (search-results-sic search-results) page-number)))))
          (body-dom (lquery:$ (lquery:initialize body)))
          (list-items (get-results-page-list-items body-dom))
          (list-contents (lquery:$
@@ -70,7 +70,7 @@
                    text-peek)))))
 
 (defmethod search-results-select-result ((search-results goo-web-results) page-number selection-number)
-    (grab-goo-relative-page (goo-web-results-get-anchor page-number selection-number)))
+    (grab-goo-relative-page (goo-web-results-get-anchor search-results page-number selection-number)))
 
 (defmethod search-results-number-of-pages ((search-results goo-local-results))
   (ceiling (length (search-results-sic search-results))
@@ -136,7 +136,7 @@
                                    (progn
                                      (format t "That number is too large or too small~%")
                                      (results-paging search-results page-number)))) 
-                 (error (simple-parse-error)
+                 (sb-int::simple-parse-error ()
                    (progn
                      (format t "That isn't a valid input~%")
                      (results-paging search-results page-number)))))))))

@@ -1,3 +1,5 @@
+(in-package :orihime)
+
 (defparameter *max-number-of-result-pages-to-query* 50)
 (defparameter *user-agent* "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14")
 (defparameter *cookie-jar* (make-instance 'drakma:cookie-jar))
@@ -90,7 +92,6 @@
         ((search "srch" proper-uri)
          (values-list `(,(get-results-pages-futures response) :results-page)))
         ((t (error "The returned URI from the response is unexpected: ~a" proper-uri)))))))
-
 
 (define-condition entry-number-parse-error (error)
   ((uri :initarg :uri :reader uri))

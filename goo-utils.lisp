@@ -26,7 +26,8 @@
          (result-type (goo-result-type this-goo-search)))
     (alexandria:switch (result-type :test #'eq)
       (:meaning (lparallel:force (aref (goo-search-results this-goo-search) 0)) )
-      (:results-page (results-paging (goo-search-results this-goo-search) 0))
+      (:results-page (results-paging
+                      (make-instance 'goo-web-results :results (goo-search-results this-goo-search))))
       (t (error "It is not possible to get a word meaning page from result with type ~A" result-type)))))
 
 (defun fill-goo-word-to-study (goo-word-to-study)

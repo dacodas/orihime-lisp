@@ -81,31 +81,6 @@
   (and (typep vector 'vector)
        (every (lambda (el) (subtypep (type-of el) 'child-word)) vector)))
 
-(defclass goo-search ()
-  ((search-term
-    :initarg :search-term)
-   (results 
-    :initarg :results
-    :reader goo-search-results)
-   (result-type
-    :initarg :result-type
-    :reader goo-result-type)))
-
-(defclass goo-entry ()
-  ((entry-number
-    :initarg :entry-number
-    :reader goo-word-entry-number)
-   (entry ;; This would be the response of the entry request
-    :initarg :entry
-    :reader goo-word-entry)))
-
-(defclass goo-word-to-study (word-to-study)
-  ((goo-search
-    :reader goo-search)
-   (goo-entry
-    :reader goo-entry)
-   (word-type :initform :goo-word)))
-
 (defun make-definition (contents)
   (let ((definition (make-text contents :text-type :definition)))
     (vector-push-extend definition *definitions* 10)
@@ -115,8 +90,6 @@
   (let* ((hash (cl-base64:usb8-array-to-base64-string (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents))))
          (this-text (make-instance 'text :contents contents :id hash :text-type text-type)))
     (setf (gethash hash *texts*) this-text)))
-
-
 
 (defun get-text-from-id (id)
   (text-contents (gethash id *texts*)))
@@ -156,4 +129,38 @@
         hash-result
         (let ((new-word (make-goo-word-to-study reading)))
           (if fill (fill-goo-word-to-study new-word))
+
+
+
+
+
+
+
+
+
+
+(defclass goo-search ()
+  ((search-term
+    :initarg :search-term)
+   (results 
+    :initarg :results
+    :reader goo-search-results)
+   (result-type
+    :initarg :result-type
+    :reader goo-result-type)))
+
+(defclass goo-entry ()
+  ((entry-number
+    :initarg :entry-number
+    :reader goo-word-entry-number)
+   (entry ;; This would be the response of the entry request
+    :initarg :entry
+    :reader goo-word-entry)))
+
+(defclass goo-word-to-study (word-to-study)
+  ((goo-search
+    :reader goo-search)
+   (goo-entry
+    :reader goo-entry)
+   (word-type :initform :goo-word)))
           new-word))))
