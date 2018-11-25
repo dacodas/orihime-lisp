@@ -4,7 +4,7 @@
   :description "Lispy word webs"
   :serial t
   :components ((:file "package")
-               (:file "class-definitions")
+               (:file "orihime")
 	           (:file "goo-utils")
                (:file "goo-web")
                (:file "goo-local")

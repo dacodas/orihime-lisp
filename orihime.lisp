@@ -104,7 +104,7 @@
   (text-contents (gethash id *texts*)))
 
 (defun word-definition-text-id (reading)
-  (word-definition (add-word reading)))
+  (word-definition (search-for-word reading)))
 
 (defun add-child-word-to-child-words (child-word child-words)
 
@@ -118,7 +118,7 @@
         (vector-push-extend child-word child-words 10))))
 
 (defun add-child-word-to-text (text-id reading ocurrence-in-text)
-  (let ((this-word (add-word reading))
+  (let ((this-word (search-for-word reading))
         (this-text (gethash text-id *texts*)))
     (multiple-value-bind (start end)
         (cl-ppcre:scan ocurrence-in-text (text-contents this-text))
@@ -130,12 +130,6 @@
         (add-child-word-to-child-words child-word
                                        (slot-value this-text 'child-words))
         t))))
-
-(defun search-for-word (reading)
-  (let ((hash-result (gethash reading *words*)))
-    (if hash-result
-        hash-result
-        (add-new-word reading))))
 
 (defun find-definition-from-backend (reading)
   (case *current-backend*
@@ -150,3 +144,9 @@
                               :word-reading reading
                               :definition definition-id)))
     (setf (gethash reading *words*) word)))
+
+(defun search-for-word (reading)
+  (let ((hash-result (gethash reading *words*)))
+    (if hash-result
+        hash-result
+        (add-word reading))))

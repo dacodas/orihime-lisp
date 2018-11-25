@@ -45,8 +45,9 @@
         (progn
           (message "Getting text for %s" text-id)
           (slime-eval-async `(orihime::add-child-word-to-text ,text-id ,reading ,ocurrence)
-            `(lambda (result) (orihime-show-word ,reading))))
-      (orihime-show-word reading))))
+            `(lambda (result) ()))))
+
+    (orihime-show-word reading)))
 
 (defun orihime-show-word-from-region-and-modify (start end)
   (interactive "r")
