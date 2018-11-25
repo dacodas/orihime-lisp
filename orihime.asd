@@ -13,5 +13,16 @@
                (:file "serialization")
                (:file "generate-anki-format")
                (:file "graphs"))
-  :depends-on (:log4cl :drakma :do-urlencode :plump :lquery :lparallel :cl-ppcre :swank :ironclad :cl-base64 :cl-mongo
-                       :cl-containers :cl-graph :cl-mustache))
+  :depends-on (:log4cl 
+               :drakma 
+               :do-urlencode 
+               :plump 
+               :lquery 
+               :lparallel 
+               :cl-ppcre 
+               :ironclad 
+               :cl-base64 
+               :cl-mongo 
+               :cl-containers 
+               :cl-graph 
+               :cl-mustache))
