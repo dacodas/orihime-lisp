@@ -76,46 +76,48 @@
             (cl-graph:add-edge-between-vertexes graph word-reading (word-reading child-word)
                                                 :dot-attributes '(:label ""))))))
 
-(let* ((text-id "XEcPVxJY4yxYlJMxWVitVKeyjQ9p/bhIOXVyBU838qQ=")
-       (text-id-sans-slashes (remove-slashes text-id))
-       (text (gethash text-id *texts*))
-       (*output-directory* (make-pathname :directory (append (pathname-directory *output-root-directory*) (list text-id-sans-slashes))))
-       (dot-file-name (merge-pathnames (make-pathname :name text-id-sans-slashes :type "dot") *output-directory*))
-       (svg-file-name (merge-pathnames (make-pathname :type "svg") dot-file-name))
-       (pdf-file-name (merge-pathnames (make-pathname :type "pdf") dot-file-name))
-       (united-pdf-file-name (merge-pathnames (make-pathname :name (format nil "~A-united-output" text-id-sans-slashes)) pdf-file-name))
-       (linked-pdf-file-name (merge-pathnames (make-pathname :name (format nil "~A-linked-output" text-id-sans-slashes)) pdf-file-name)))
+(defun text-make-graph (text-id)
+  (let* ((text-id-sans-slashes (remove-slashes text-id))
+         (text (gethash text-id *texts*))
+         (*output-directory* (make-pathname :directory (append (pathname-directory *output-root-directory*) (list text-id-sans-slashes))))
+         (dot-file-name (merge-pathnames (make-pathname :name text-id-sans-slashes :type "dot") *output-directory*))
+         (svg-file-name (merge-pathnames (make-pathname :type "svg") dot-file-name))
+         (pdf-file-name (merge-pathnames (make-pathname :type "pdf") dot-file-name))
+         (united-pdf-file-name (merge-pathnames (make-pathname :name (format nil "~A-united-output" text-id-sans-slashes)) pdf-file-name))
+         (linked-pdf-file-name (merge-pathnames (make-pathname :name (format nil "~A-linked-output" text-id-sans-slashes)) pdf-file-name)))
 
-  (ensure-directories-exist *output-directory*)
+    (ensure-directories-exist *output-directory*)
 
-  (with-open-file (output-file dot-file-name
-                               :direction :output
-                               :if-exists :supersede
-                               :if-does-not-exist :create)
-    (let ((graph (cl-graph:make-graph 'cl-graph:dot-graph)))
-      (add-this-and-children-to-graph text graph)
-      (cl-graph:graph->dot graph output-file)))
+    (with-open-file (output-file dot-file-name
+                                 :direction :output
+                                 :if-exists :supersede
+                                 :if-does-not-exist :create)
+      (let ((graph (cl-graph:make-graph 'cl-graph:dot-graph)))
+        (add-this-and-children-to-graph text graph)
+        (cl-graph:graph->dot graph output-file)))
 
-  (sb-ext:run-program "/usr/bin/dot" `(,(namestring dot-file-name) "-Tsvg" "-o" ,(namestring svg-file-name)))
-  (sb-ext:run-program "/usr/bin/rsvg-convert" `("-f" "pdf" "-o" ,(namestring pdf-file-name) ,(namestring svg-file-name)))
+    (sb-ext:run-program "/usr/bin/dot" `(,(namestring dot-file-name) "-Tsvg" "-o" ,(namestring svg-file-name)))
+    (sb-ext:run-program "/usr/bin/rsvg-convert" `("-f" "pdf" "-o" ,(namestring pdf-file-name) ,(namestring svg-file-name)))
 
-  (let* ((pdf-files-in-order (append
-                              (list pdf-file-name
-                                    (merge-pathnames (make-pathname :name (format nil *text-id-contents-file-name-format* text-id-sans-slashes) :type "pdf")
-                                                     *output-directory*))
-                              (loop for word in *word-names* collect
-                                   (merge-pathnames (make-pathname :name word :type "pdf")
-                                                    *output-directory*))))
-         (pdfunite-files (append pdf-files-in-order (list united-pdf-file-name))))
-    (sb-ext:run-program "/usr/bin/pdfunite" (mapcar #'namestring pdfunite-files)
-                        :output "/tmp/output"
-                        :if-output-exists :supersede)
+    (let* ((pdf-files-in-order (append
+                                (list pdf-file-name
+                                      (merge-pathnames (make-pathname :name (format nil *text-id-contents-file-name-format* text-id-sans-slashes) :type "pdf")
+                                                       *output-directory*))
+                                (loop for word in *word-names* collect
+                                     (merge-pathnames (make-pathname :name word :type "pdf")
+                                                      *output-directory*))))
+           (pdfunite-files (append pdf-files-in-order (list united-pdf-file-name))))
+      (sb-ext:run-program "/usr/bin/pdfunite" (mapcar #'namestring pdfunite-files)
+                          :output "/tmp/output"
+                          :if-output-exists :supersede)
 
-    (let ((arguments (append `(,(namestring united-pdf-file-name) ,text-id) *word-names* `(,(namestring linked-pdf-file-name)))))
-      (format t "~A" arguments)
-      (sb-ext:run-program  "/home/dacoda/pdf-testing/testing" arguments
-                           :environment '("LD_LIBRARY_PATH=/home/dacoda/poppler/build/")
-                           :output "/tmp/output"
-                           :if-output-exists :supersede))))
+      (let ((arguments (append `(,(namestring united-pdf-file-name) ,text-id) *word-names* `(,(namestring linked-pdf-file-name)))))
+        (format t "~A" arguments)
+        (sb-ext:run-program  "/home/dacoda/pdf-testing/testing" arguments
+                             :environment '("LD_LIBRARY_PATH=/home/dacoda/poppler/build/")
+                             :output "/tmp/output"
+                             :if-output-exists :supersede)))))
+
+
 
 

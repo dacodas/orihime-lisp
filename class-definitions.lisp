@@ -6,6 +6,8 @@
 (defvar *texts* (make-hash-table :test #'equalp))
 (defvar *definitions* (make-array 10 :adjustable t :fill-pointer 0))
 (defparameter *current-backend* :goo-local)
+(defparameter *mongo-database* "orihime")
+(cl-mongo:db.use *mongo-database*)
 
 ;; Definition can either be plain text or some sort of markup like
 ;; HTML or markdown

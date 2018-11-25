@@ -1,3 +1,7 @@
+- Add a backend for custome definitions from other sources and whatnot
+- Make sure the trie program doesn't segfault when there is no word that matches
+
+
 (todo :status :cancelled
       :timestamp (date "2018-06-06 Wed 00:02")
       :tagline 始>終>Ignore the /l-ol comments in definitions終

@@ -20,8 +20,6 @@
     (text                  (make-document-from-class object (text-id object)))
     (child-word-in-context (make-document-from-class object (word-reading object)))
     (word-to-study         (make-document-from-class object (word-reading object)))
-    (goo-search            (make-document-from-class object))
-    (goo-entry             (make-document-from-class object))
     (vector (loop for element across object
                collect (serialize-for-mongo element)))
 
@@ -41,10 +39,10 @@
 
 
 (defun persist ()
-  (cl-mongo:db.use "totally-new")
-  (loop for k being the hash-keys of *words*
-     using (hash-value value)
-     do (cl-mongo:db.save "words" (serialize-for-mongo value)))
-  (loop for k being the hash-keys of *texts*
-     using (hash-value value)
-     do (cl-mongo:db.save "texts" (serialize-for-mongo value))))
+  (with-mongo-database (*mongo-database*)
+    (loop for k being the hash-keys of *words*
+       using (hash-value value)
+       do (cl-mongo:db.save "words" (serialize-for-mongo value)))
+    (loop for k being the hash-keys of *texts*
+       using (hash-value value)
+       do (cl-mongo:db.save "texts" (serialize-for-mongo value)))))

@@ -1,6 +1,15 @@
 (in-package :orihime)
 
-(cl-mongo:db.use "totally-new")
+(defmacro with-mongo-database ((database-name) &body body)
+  (if (equal *mongo-database* database-name)
+      `(,@body)
+      `(let ((previous-database ,*mongo-database*)
+             (*mongo-database* ,database-name))
+         (unwind-protect
+              (progn
+                (cl-mongo:db.use *mongo-database*)
+                ,@body)
+           (cl-mongo:db.use previous-database)))))
 
 ;; Don't work with symbols. Instead, make-instance and then populate
 ;; the slots. 
@@ -27,31 +36,32 @@
     (t (unserialize-mongo-document slot-value))))
 
 (defun unserialize-mongo-document (document &optional class-name)
-  (if class-name
-      (let ((class-slots (get-class-slots class-name))
-            (new-object (make-object-from-class-name class-name)))
-        (log:debug "Here are the class slots: ~S" class-slots)
-        (log:debug "Here are the keys: ~{~S~^, ~}" (cl-mongo:get-keys document))
-        (loop for key in (cl-mongo:get-keys document)
-           do (let* ((slot-name (intern (string-upcase key) :goo))
-                     (value (handle-slot-value slot-name (cl-mongo:get-element key document))))
-                (labels ((slot-is-valid ()
-                           (and (not (null value)) (find slot-name class-slots))))
-                  (log:debug "Slot ~S is ~Avalid" slot-name (if (slot-is-valid) "" "not "))
-                  (if (slot-is-valid)
-                   (setf (slot-value new-object slot-name) value)))))
-        new-object)
+  (with-mongo-database (*mongo-database*)
+    (if class-name
+        (let ((class-slots (get-class-slots class-name))
+              (new-object (make-object-from-class-name class-name)))
+          (log:debug "Here are the class slots: ~S" class-slots)
+          (log:debug "Here are the keys: ~{~S~^, ~}" (cl-mongo:get-keys document))
+          (loop for key in (cl-mongo:get-keys document)
+             do (let* ((slot-name (intern (string-upcase key) :orihime))
+                       (value (handle-slot-value slot-name (cl-mongo:get-element key document))))
+                  (labels ((slot-is-valid ()
+                             (and (not (null value)) (find slot-name class-slots))))
+                    (log:debug "Slot ~S is ~Avalid" slot-name (if (slot-is-valid) "" "not "))
+                    (if (slot-is-valid)
+                        (setf (slot-value new-object slot-name) value)))))
+          new-object)
 
-      (etypecase document
-        (number document)
-        (string document)
-        (null nil)
-        (cons (mapcar #'unserialize-mongo-document document))
-        (cl-mongo:document
-         (error "You want me to unserialize a mongo document, but you didn't tell me how to unserialize it: ~%~A"
-                (let ((stream (make-string-output-stream)))
-                  (cl-mongo::print-object.dacoda document stream)
-                  (get-output-stream-string stream)))))))
+        (etypecase document
+          (number document)
+          (string document)
+          (null nil)
+          (cons (mapcar #'unserialize-mongo-document document))
+          (cl-mongo:document
+           (error "You want me to unserialize a mongo document, but you didn't tell me how to unserialize it: ~%~A"
+                  (let ((stream (make-string-output-stream)))
+                    (cl-mongo::print-object.dacoda document stream)
+                    (get-output-stream-string stream))))))))
 
 (defun unserialize-texts ()
   (mapcar (lambda (document)
