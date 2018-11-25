@@ -2,8 +2,10 @@
 
 (defparameter *current-graph-words* nil)
 (defparameter *output-root-directory* (make-pathname :directory "tmp"))
+(defparameter *templates-directory* (merge-pathnames (make-pathname :directory '(:relative "static"))
+                                     (asdf:system-source-directory :orihime)))
 (defparameter *latex-template-file* (merge-pathnames (make-pathname :name "latex-template.tex" :type "mustache")
-                                                     (asdf:system-source-directory :orihime)))
+                                                     *templates-directory*))
 (defparameter *text-id-contents-file-name-format* "~A-contents")
 (defparameter *output-directory* nil)
 (defparameter *word-names* nil)

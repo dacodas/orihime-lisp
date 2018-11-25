@@ -3,16 +3,13 @@
 (setq *text-buffer-format* "*text-%s*")
 (setq *text-buffer-regex* "\\*text-\\(.*\\)\\*")
 
-(defun kill-buffer-text-id ()
-  (interactive)
-  (kill-new (get-buffer-text-id (buffer-name))))
 
-(defun get-buffer-text-id (buffer-name)
+(defun orihime-get-buffer-text-id (buffer-name)
   (interactive "b")
   (if (string-match *text-buffer-regex* buffer-name)
       (message (match-string-no-properties 1 buffer-name))))
 
-(defun add-text-from-buffer ()
+(defun orihime-add-text-from-buffer ()
   (interactive)
   (let* ((text-contents (buffer-substring-no-properties (point-min) (point-max)))
          (text-id (slime-eval `(orihime::text-id (orihime::make-text ,text-contents)))))
@@ -21,8 +18,12 @@
     (setq buffer-read-only t)
     (goto-char (point-min))))
 
+(defun orihime-kill-buffer-text-id ()
+  (interactive)
+  (kill-new (orihime-get-buffer-text-id (buffer-name))))
+
 (defun orihime-show-word (word)
-  ""
+  (interactive "sWord to lookup: ")
   (slime-eval-async `(orihime::word-definition-text-id ,word)
     (lambda (definition-text-id)
       (let ((word-buffer-name (format *text-buffer-format* definition-text-id))
@@ -40,7 +41,7 @@
          (reading (if modify-text
                       (read-string "Sequence to lookup: " ocurrence)
                     ocurrence))
-         (text-id (get-buffer-text-id (buffer-name))))
+         (text-id (orihime-get-buffer-text-id (buffer-name))))
     (if text-id
         (progn
           (message "Getting text for %s" text-id)

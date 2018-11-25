@@ -5,14 +5,14 @@
   :serial t
   :components ((:file "package")
                (:file "orihime")
-	           (:file "goo-utils")
-               (:file "goo-web")
-               (:file "goo-local")
-               (:file "goo-results-paging")
-               (:file "cl-mongo-document-printing")
+               (:file "results-paging")
                (:file "serialization")
-               (:file "generate-anki-format")
-               (:file "graphs"))
+               (:file "graphs")
+               (:module backends
+                        :pathname "backends"
+                        :components ((:file "goo-utils")
+                                     (:file "goo-web")
+                                     (:file "goo-local"))))
   :depends-on (:log4cl 
                :drakma 
                :do-urlencode 

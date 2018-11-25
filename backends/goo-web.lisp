@@ -1,5 +1,63 @@
 (in-package :orihime)
 
+(defclass goo-web-results (search-results)
+  ;; This is a 2D vector
+  ;; - The first index is the page number
+  ;; - The second index is the selection number
+  ;; - The value is the target of the anchor
+  ((page-anchors :accessor goo-web-results-page-anchors)))
+
+;; Make sure to initialize vector for the page-anchors
+(defmethod initialize-instance :after ((search-results goo-web-results) &key)
+
+  (if (not (equal 10 (search-results-results-per-page search-results)))
+      (error "A goo-web-results instance needs to have 10 results per page"))
+
+  (let ((page-futures (search-results-sic search-results)))
+    (setf (goo-web-results-page-anchors search-results)
+          (make-array (length page-futures)))))
+
+(defun goo-web-results-get-anchor (goo-web-results page-number selection-number)
+    (aref 
+     (aref
+      (goo-web-results-page-anchors goo-web-results)
+      page-number)
+     selection-number))
+
+(defmethod search-results-number-of-pages ((search-results goo-web-results))
+    (length (search-results-sic search-results)))
+
+(defmethod search-results-page-list ((search-results goo-web-results) page-number)
+  (let* ((body (first (multiple-value-list (lparallel:force (aref (search-results-sic search-results) page-number)))))
+         (body-dom (lquery:$ (lquery:initialize body)))
+         (list-items (get-results-page-list-items body-dom))
+         (list-contents (lquery:$
+                          list-items
+                          (combine (lquery:$ "dt.title" (lquery-funcs:text))
+                                   (lquery:$ "dd.mean" (lquery-funcs:text))
+                                   (lquery:$ "a" (lquery-funcs:attr :href)))
+                          (lquery-funcs:map-apply (lambda (&rest args)
+                                                    (mapcar (lambda (vector) (aref vector 0))
+                                                            args))))))
+    (setf (aref (goo-web-results-page-anchors search-results) page-number)
+          (make-array (length list-contents)))
+
+    (loop for (title meaning-text anchor) across list-contents
+       for result-number below (length list-contents)
+       do (setf
+           (aref 
+            (aref (goo-web-results-page-anchors search-results) page-number)
+            result-number)
+           anchor)
+       collect 
+         (let ((text-peek (subseq meaning-text 0 (min (length meaning-text) 40))))
+           (format nil "~A：~A..."
+                   title
+                   text-peek)))))
+
+(defmethod search-results-select-result ((search-results goo-web-results) page-number selection-number)
+    (grab-goo-relative-page (goo-web-results-get-anchor search-results page-number selection-number)))
+
 (defparameter *max-number-of-result-pages-to-query* 50)
 (defparameter *user-agent* "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14")
 (defparameter *cookie-jar* (make-instance 'drakma:cookie-jar))
