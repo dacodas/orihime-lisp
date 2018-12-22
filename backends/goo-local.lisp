@@ -1,9 +1,15 @@
 (in-package :orihime)
 
-(defparameter *goo-trie-socket* (usocket:socket-connect "localhost" 7081))
+(defparameter *goo-host* "localhost")
+(defparameter *goo-port* 7081)
 (defparameter *goo-local-cache* #P"/home/dacoda/projects/goo-processing/dictionary-entries/")
 
+(defparameter *goo-trie-socket* nil)
+
 (defun goo-local-search (reading)
+
+  (if (not *goo-trie-socket*)
+      (setf *goo-trie-socket* (usocket:socket-connect *goo-host* *goo-port*)))
 
   (let ((stream (usocket:socket-stream *goo-trie-socket*)))
     (format stream "LEMMEKNOW ~A" reading)
