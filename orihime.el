@@ -35,6 +35,9 @@
         (text-scale-set 4)
         (goto-char (point-min))))))
 
+;; Should paging perhaps be done in emacs? That way we could use helm and all
+;; sorts of nice beautiful things. Also, we would wouldn't have to use this
+;; stupid hack with slime-eval async
 (defun orihime-show-word-from-region (start end &optional modify-text)
   (interactive "r")
   (let* ((ocurrence (buffer-substring-no-properties start end))
@@ -45,10 +48,11 @@
     (if text-id
         (progn
           (message "Getting text for %s" text-id)
-          (slime-eval-async `(orihime::add-child-word-to-text ,text-id ,reading ,ocurrence)
-            `(lambda (result) ()))))
-
-    (orihime-show-word reading)))
+          (cl-macrolet ((stupid-macro ()
+                                      `(slime-eval-async `(orihime::add-child-word-to-text ,text-id ,reading ,ocurrence)
+                                         (lambda (result) (orihime-show-word ,reading)))))
+            (stupid-macro)))
+      (orihime-show-word reading))))
 
 (defun orihime-show-word-from-region-and-modify (start end)
   (interactive "r")
