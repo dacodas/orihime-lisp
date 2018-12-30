@@ -6,8 +6,8 @@
   :components ((:file "package")
                (:file "orihime")
                (:file "results-paging")
-               (:file "serialization")
-               (:file "graphs")
+               ;; (:file "serialization")
+               ;; (:file "graphs")
                (:module backends
                         :pathname "backends"
                         :components ((:file "goo-utils")
@@ -21,8 +21,7 @@
                :lparallel 
                :cl-ppcre 
                :ironclad 
-               :cl-base64 
-               :cl-mongo 
+               :cl-dbi
                :cl-containers 
                :cl-graph 
                :cl-mustache))

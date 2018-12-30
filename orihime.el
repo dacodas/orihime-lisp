@@ -3,16 +3,20 @@
 (setq *text-buffer-format* "*text-%s*")
 (setq *text-buffer-regex* "\\*text-\\(.*\\)\\*")
 
-
 (defun orihime-get-buffer-text-id (buffer-name)
   (interactive "b")
   (if (string-match *text-buffer-regex* buffer-name)
       (message (match-string-no-properties 1 buffer-name))))
 
+;; Have CL orihime add the text to the database and return the resultant hash 
 (defun orihime-add-text-from-buffer ()
   (interactive)
-  (let* ((text-contents (buffer-substring-no-properties (point-min) (point-max)))
-         (text-id (slime-eval `(orihime::text-id (orihime::make-text ,text-contents)))))
+  (orihime-add-text-from-region (point-min) (point-max)))
+
+(defun orihime-add-text-from-region (start end)
+  (interactive "r")
+  (let* ((text-contents (buffer-substring-no-properties start end))
+         (text-id (slime-eval `(orihime::sql-add-text ,text-contents))))
     (switch-to-buffer (format *text-buffer-format* text-id))
     (insert text-contents)
     (setq buffer-read-only t)
@@ -22,12 +26,13 @@
   (interactive)
   (kill-new (orihime-get-buffer-text-id (buffer-name))))
 
+;; Grab the definition of the word, regardless of whether it has been searched for already 
 (defun orihime-show-word (word)
   (interactive "sWord to lookup: ")
-  (slime-eval-async `(orihime::word-definition-text-id ,word)
-    (lambda (definition-text-id)
-      (let ((word-buffer-name (format *text-buffer-format* definition-text-id))
-            (definition (slime-eval `(orihime::get-text-from-id ,definition-text-id))))
+  (slime-eval-async `(orihime::find-word-and-definition ,word)
+    (lambda (result)
+      (let ((word-buffer-name (format *text-buffer-format* (plist-get result :definition-hash)))
+            (definition (plist-get result :contents)))
         (switch-to-buffer word-buffer-name)
         (erase-buffer)
         (insert definition)
