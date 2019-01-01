@@ -114,8 +114,16 @@
                    word-and-text))))
     (helper reading)))
 
-(defun symbolize-sql-keys (sql-result)
-  (let ((special-cases '(:|lcase(hex(words.definition_hash))| :definition-hash)))
+(defparameter *sql-keys-default-special-cases*
+  '(:|lcase(hex(definition_hash))| :definition-hash
+    :|lcase(hex(words.definition_hash))| :definition-hash
+    :|lcase(hex(hash))| :hash
+    :|lcase(hex(texts.hash))| :hash))
+
+(defun symbolize-sql-keys (sql-result &optional additional-special-cases)
+  (let ((special-cases (copy-list *sql-keys-default-special-cases*)))
+    (loop for (key value) on additional-special-cases by #'cddr
+       do (setf (getf special-cases key) value))
     (loop for (key value) on sql-result
        by #'cddr
        append (list (intern (format nil "~A"
@@ -129,3 +137,10 @@
 (defun add-word (reading)
   (let* ((definition (find-definition-from-backend reading)))
     (sql-add-word reading definition)))
+
+(defun most-recent-texts (&optional (limit 5))
+  (let* ((query (dbi:prepare *connection* "select contents, id, lcase(hex(hash)) from texts ORDER BY id DESC LIMIT ?;"))
+         (result (dbi:execute query limit)))
+    (loop for row = (dbi:fetch result)
+       while row
+       collect (symbolize-sql-keys row))))

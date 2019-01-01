@@ -26,19 +26,25 @@
   (interactive)
   (kill-new (orihime-get-buffer-text-id (buffer-name))))
 
+(defun orihime-open-text-in-new-buffer (text-plist)
+  (let* ((hash (or (plist-get text-plist :definition-hash)
+                   (plist-get text-plist :hash)))
+         (assertion (cl-assert (not (null hash)) nil "Unable to find hash in %s" text-plist))
+         (word-buffer-name (format *text-buffer-format* hash))
+         (definition (plist-get text-plist :contents)))
+    (switch-to-buffer word-buffer-name)
+    (erase-buffer)
+    (insert definition)
+    (fill-individual-paragraphs (point-min) (point-max))
+    (text-scale-set 4)
+    (setq buffer-read-only t)
+    (goto-char (point-min))))
+
 ;; Grab the definition of the word, regardless of whether it has been searched for already 
 (defun orihime-show-word (word)
   (interactive "sWord to lookup: ")
   (slime-eval-async `(orihime::find-word-and-definition ,word)
-    (lambda (result)
-      (let ((word-buffer-name (format *text-buffer-format* (plist-get result :definition-hash)))
-            (definition (plist-get result :contents)))
-        (switch-to-buffer word-buffer-name)
-        (erase-buffer)
-        (insert definition)
-        (fill-individual-paragraphs (point-min) (point-max))
-        (text-scale-set 4)
-        (goto-char (point-min))))))
+    #'orihime-open-text-in-new-buffer))
 
 ;; Should paging perhaps be done in emacs? That way we could use helm and all
 ;; sorts of nice beautiful things. Also, we would wouldn't have to use this
@@ -62,3 +68,15 @@
 (defun orihime-show-word-from-region-and-modify (start end)
   (interactive "r")
   (orihime-show-word-from-region start end t))
+
+(cl-defun orihime-open-recent-text (&optional (limit 20))
+  (interactive)
+  (cl-flet ((transformer (candidates)
+                         (cl-loop for candidate in candidates
+                                  collect `(,(plist-get candidate :contents) . ,candidate))))
+    (helm :sources (helm-build-sync-source "*orihime-recent-texts*"
+                     :candidates (slime-eval `(orihime::most-recent-texts ,limit))
+                     :candidate-transformer #'transformer 
+                     :action #'orihime-open-text-in-new-buffer
+                     :multiline t)
+          :buffer "*helm sync source*")))
