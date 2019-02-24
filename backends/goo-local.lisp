@@ -1,8 +1,8 @@
 (in-package :orihime)
 
-(defparameter *goo-host* "localhost")
+(defparameter *goo-host* "goo-local-container")
 (defparameter *goo-port* 7081)
-(defparameter *goo-local-cache* #P"/home/dacoda/projects/goo-processing/dictionary-entries/")
+(defparameter *goo-local-cache* #P"/var/lib/goo/data/dictionary-entries/")
 
 (defparameter *goo-trie-socket* nil)
 

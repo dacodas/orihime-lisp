@@ -1,125 +1,78 @@
 (in-package :orihime)
 
-(defparameter *current-graph-words* nil)
-(defparameter *output-root-directory* (make-pathname :directory "tmp"))
-(defparameter *templates-directory* (merge-pathnames (make-pathname :directory '(:relative "static"))
-                                     (asdf:system-source-directory :orihime)))
-(defparameter *latex-template-file* (merge-pathnames (make-pathname :name "latex-template.tex" :type "mustache")
-                                                     *templates-directory*))
-(defparameter *text-id-contents-file-name-format* "~A-contents")
-(defparameter *output-directory* nil)
-(defparameter *word-names* nil)
+(defparameter *graph* (cl-graph:make-graph 'cl-graph:dot-graph))
+(defparameter *parent* nil)
 
-;; (defparameter *dot-file-name* nil)
-;; (defparameter *svg-file-name* nil)
-;; (defparameter *pdf-file-name* nil)
-(defun child-word-definition-text (child-word)
-  (let ((definition-id (word-definition (gethash (word-reading child-word) *words*))))
-    (gethash definition-id *texts*)) )
+;; The original functions for grab-text and grab-child-words
+((loop for row = (symbolize-sql-keys (dbi:fetch result))
+         while row
+         do
+           (with-plist-properties (peek)
+               row
+             (format t "~S~%" row)
+             (cl-graph:add-vertex *graph*
+                                  text-id
+                                  :dot-attributes `(:label ,peek :url nil))
+             (grab-child-words text-id)))
+      (let ((*parent* (or *parent* text-id)))
+        (loop for row = (symbolize-sql-keys (dbi:fetch result))
+           while row
+           do
+             (progn (format t "~S~%" row)
+                    (with-plist-properties (word-id reading) row
+                      (unless (cl-graph:find-vertex *graph* word-id nil)
+                        (cl-graph:add-vertex *graph*
+                                             word-id
+                                             :dot-attributes `(:label ,reading :url nil))
+                        (cl-graph:add-edge-between-vertexes *graph*
+                                                            *parent*
+                                                            word-id
+                                                            :dot-attributes '(:label ""))
+                        (format t "Okay, grabbing child words now for word id ~A...~%" word-id)
+                        (let ((*parent* word-id))
+                          (grab-child-words (grab-definition-text-id-from-word-id word-id) ))))))))
 
-(defgeneric print-child-words (object stream))
+(defun/sql grab-all-texts-from-source (source-id)
+  (let* ((query (dbi:prepare *connection*
+                             (join-sql-strings
+                              "SELECT id FROM texts"
+                              "WHERE source_id = ?")))
+         (result (dbi:execute query source-id)))
 
-(defmethod print-child-words ((text text) stream)
-  (loop for word across (text-child-words text)
-       do (print-child-words word stream)))
+    (loop for row = (symbolize-sql-keys (dbi:fetch result))
+       while row
+       do (let ((*graph* (cl-graph:make-graph 'cl-graph:dot-graph)))
 
-(defmethod print-child-words ((word child-word-in-context) stream)
-  (format stream "Current word: ~A~%Children words: ~%" (word-reading word))
-  (print-child-words (child-word-definition-text word) stream))
+            (with-plist-properties (id) row
+              (grab-text id)
 
-(defun remove-slashes (text)
-  (cl-ppcre:regex-replace-all "/" text ""))
-
-(defgeneric add-this-and-children-to-graph (object graph))
-
-(defmethod add-this-and-children-to-graph ((text text) graph)
-  (let* ((text-peek (get-text-peek text))
-         (text-id (text-id text))
-         (text-id-sans-slashes (remove-slashes text-id)))
-    (cl-graph:add-vertex graph text-id-sans-slashes :dot-attributes `(:label ,text-peek :url ,text-id-sans-slashes))
-
-    (let* ((tex-file-name (merge-pathnames (make-pathname :name (format nil *text-id-contents-file-name-format* text-id-sans-slashes) :type "tex") *output-directory*))
-           (pdf-file-name (merge-pathnames (make-pathname :type "pdf") tex-file-name)))
-      
-      (with-open-file (output-file tex-file-name
-                                   :direction :output
-                                   :if-does-not-exist :create
-                                   :if-exists :supersede)
-
-        (mustache:render *latex-template-file* `((:content . ,(text-contents text))) output-file))
-      (sb-ext:run-program "/usr/bin/xelatex" `(,(namestring tex-file-name)) :directory *output-directory*))
-
-    (loop for word across (text-child-words text)
-       do (progn
-            (add-this-and-children-to-graph word graph)
-            (cl-graph:add-edge-between-vertexes graph text-id-sans-slashes (word-reading word)
-                                                :dot-attributes '(:label ""))))))
-
-(defmethod add-this-and-children-to-graph ((word child-word-in-context) graph)
-  (with-slots (word-reading) word
-    (cl-graph:add-vertex graph word-reading :dot-attributes `(:label ,word-reading :url ,word-reading))
-
-    (let* ((tex-file-name (merge-pathnames (make-pathname :name word-reading :type "tex") *output-directory*))
-           (pdf-file-name (merge-pathnames (make-pathname :type "pdf") tex-file-name)))
-      
-      (with-open-file (output-file tex-file-name
-                                   :direction :output
-                                   :if-does-not-exist :create
-                                   :if-exists :supersede)
-
-        (mustache:render *latex-template-file* `((:content . ,(text-contents (child-word-definition-text word)))) output-file))
-      (sb-ext:run-program "/usr/bin/xelatex" `(,(namestring tex-file-name)) :directory *output-directory*))
-
-    (push word-reading *word-names*)
-  
-    (loop for child-word across (text-child-words (child-word-definition-text word))
-       do (progn
-            (add-this-and-children-to-graph child-word graph)
-            (cl-graph:add-edge-between-vertexes graph word-reading (word-reading child-word)
-                                                :dot-attributes '(:label ""))))))
-
-(defun text-make-graph (text-id)
-  (let* ((text-id-sans-slashes (remove-slashes text-id))
-         (text (gethash text-id *texts*))
-         (*output-directory* (make-pathname :directory (append (pathname-directory *output-root-directory*) (list text-id-sans-slashes))))
-         (dot-file-name (merge-pathnames (make-pathname :name text-id-sans-slashes :type "dot") *output-directory*))
-         (svg-file-name (merge-pathnames (make-pathname :type "svg") dot-file-name))
-         (pdf-file-name (merge-pathnames (make-pathname :type "pdf") dot-file-name))
-         (united-pdf-file-name (merge-pathnames (make-pathname :name (format nil "~A-united-output" text-id-sans-slashes)) pdf-file-name))
-         (linked-pdf-file-name (merge-pathnames (make-pathname :name (format nil "~A-linked-output" text-id-sans-slashes)) pdf-file-name)))
-
-    (ensure-directories-exist *output-directory*)
-
-    (with-open-file (output-file dot-file-name
-                                 :direction :output
-                                 :if-exists :supersede
-                                 :if-does-not-exist :create)
-      (let ((graph (cl-graph:make-graph 'cl-graph:dot-graph)))
-        (add-this-and-children-to-graph text graph)
-        (cl-graph:graph->dot graph output-file)))
-
-    (sb-ext:run-program "/usr/bin/dot" `(,(namestring dot-file-name) "-Tsvg" "-o" ,(namestring svg-file-name)))
-    (sb-ext:run-program "/usr/bin/rsvg-convert" `("-f" "pdf" "-o" ,(namestring pdf-file-name) ,(namestring svg-file-name)))
-
-    (let* ((pdf-files-in-order (append
-                                (list pdf-file-name
-                                      (merge-pathnames (make-pathname :name (format nil *text-id-contents-file-name-format* text-id-sans-slashes) :type "pdf")
-                                                       *output-directory*))
-                                (loop for word in *word-names* collect
-                                     (merge-pathnames (make-pathname :name word :type "pdf")
-                                                      *output-directory*))))
-           (pdfunite-files (append pdf-files-in-order (list united-pdf-file-name))))
-      (sb-ext:run-program "/usr/bin/pdfunite" (mapcar #'namestring pdfunite-files)
-                          :output "/tmp/output"
-                          :if-output-exists :supersede)
-
-      (let ((arguments (append `(,(namestring united-pdf-file-name) ,text-id) *word-names* `(,(namestring linked-pdf-file-name)))))
-        (format t "~A" arguments)
-        (sb-ext:run-program  "/home/dacoda/pdf-testing/testing" arguments
-                             :environment '("LD_LIBRARY_PATH=/home/dacoda/poppler/build/")
-                             :output "/tmp/output"
-                             :if-output-exists :supersede)))))
+              (let* ((basename (format nil "text-~A" id))
+                     (base-pathname (make-pathname :directory `(:absolute "tmp" "orihime" "sources" ,(format nil "~d" source-id))
+                                                   :name basename))
+                     (dot-file (merge-pathnames (make-pathname :directory `(:relative "dot-files")
+                                                               :type "dot")
+                                                base-pathname))
+                     (svg-file (merge-pathnames (make-pathname :directory `(:relative "svgs")
+                                                               :type "svg")
+                                                base-pathname))
+                     (pdf-file (merge-pathnames (make-pathname :directory `(:relative "pdfs")
+                                                               :type "pdf")
+                                                base-pathname)))
 
 
+                (loop for path in (list dot-file pdf-file svg-file)
+                     do (ensure-directories-exist path))
 
-
+                (with-open-file (output-file dot-file 
+                                             :direction :output
+                                             :if-exists :supersede
+                                             :if-does-not-exist :create)
+                  (cl-graph:graph->dot *graph* output-file))
+                (let*-print ((args `("-Tpdf" "-o" ,(namestring pdf-file) ,(namestring dot-file)))
+                             (return-code (sb-ext:run-program "/usr/bin/dot" args
+                                                              :output *standard-output*
+                                                              :error *standard-output*))))
+                (let*-print ((args `("-Tsvg" "-o" ,(namestring svg-file) ,(namestring dot-file)))
+                             (return-code (sb-ext:run-program "/usr/bin/dot" args
+                                                              :output *standard-output*
+                                                              :error *standard-output*))))))))))

@@ -37,7 +37,9 @@
       (cond ((equal user-input "n") (attempt-page search-results (1+ page-number) page-number))
             ((equal user-input "p") (attempt-page search-results (1- page-number) page-number))
             (t (handler-case (let ((parsed-integer (parse-integer user-input)))
-                               (if (and (>= parsed-integer 0) (< parsed-integer (search-results-number-of-pages search-results)))
+                               (if (and (>= parsed-integer 0)
+                                        (< parsed-integer (* (search-results-results-per-page search-results)
+                                                             (search-results-number-of-pages search-results))))
                                    (progn
                                      (format t "Going to selection ~A~%" parsed-integer)
                                      (search-results-select-result search-results page-number parsed-integer))

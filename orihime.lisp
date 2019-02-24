@@ -4,48 +4,29 @@
 
 (defparameter *current-backend* :goo-local)
 
-(defparameter *connection*
-  (dbi:connect :mysql
-               :host "mysql-container"
-               :database-name "orihime"
-               :username "sbcl"
-               :password "dacodastrack"))
-
-(let* ((query (dbi:prepare *connection*
-               "set names utf8;"))
-      (result (dbi:execute query))))
-
-;; (defun get-text-peek (text)
-;;   (format nil "~A..."
-;;           (let* ((contents (text-contents text))
-;;                  (peek (subseq contents 0 (min 10 (length contents)))))
-;;             (trim-and-replace-big-breaks peek))))
-
-;; (defun get-text-child-words-peek (text)
-;;   (let ((child-words (text-child-words text)))
-;;     (loop for index below (min 5 (length child-words))
-;;        collect (word-reading (aref child-words index)))))
-
-(defun make-text-hash (contents)
-   (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents)))
-
-(defun sql-add-text (content)
+(defun/sql sql-add-text (content)
   (let* ((text-hash (make-text-hash content))
          (text-hash-hex (string-downcase (with-output-to-string (*standard-output*)
                                            (loop for byte across text-hash
                                               do (format t "~2,'0x" byte)))))
          (query (dbi:prepare *connection*
                              "INSERT INTO texts (hash, contents) VALUES (unhex(?), ?);")))
-    (dbi:execute query text-hash-hex content)
+    (restart-case (dbi:execute query text-hash-hex content)
+      (skip-sql-text-insertion ()
+        :report "Continue on without inserting this text into database"
+        nil)
+      (skip-sql-text-insertion ()
+        :report "Replace the previous text with this one"
+        nil))
     (values-list (list text-hash-hex text-hash))))
 
-(defun sql-add-word (reading definition-text)
+(defun/sql sql-add-word (reading definition-text)
   (let* ((definition-text-hash (sql-add-text definition-text))
          (query (dbi:prepare *connection*
                                   "INSERT INTO words (reading, definition_hash) VALUES (?, unhex(?));")))
     (dbi:execute query reading definition-text-hash)))
 
-(defun sql-add-text-child-word (text-hash reading start end)
+(defun/sql sql-add-text-child-word (text-hash reading start end)
 
   (add-word reading)
 
@@ -55,11 +36,7 @@
         (word-id (sql-word-id-from-reading reading)))
     (dbi:execute query text-id word-id start end)))
 
-(defun join-sql-strings (&rest strings)
-  (with-output-to-string (*standard-output*)
-    (format t "~{~A~^ ~%~};" strings)))
-
-(defun sql-word-and-text-from-reading (reading)
+(defun/sql sql-word-and-text-from-reading (reading)
   (let* ((query (dbi:prepare *connection*
                              (join-sql-strings "SELECT words.reading, lcase(hex(words.definition_hash)), texts.contents FROM words"
                                                "INNER JOIN texts ON words.definition_hash=texts.hash"
@@ -67,25 +44,25 @@
                                                ))))
     (dbi:fetch (dbi:execute query reading))))
 
-(defun sql-definition-text-hash-from-reading (reading)
+(defun/sql sql-definition-text-hash-from-reading (reading)
   (let* ((query (dbi:prepare *connection*
                              "SELECT definition_hash FROM words WHERE reading = ?;"))
          (result (dbi:execute query reading)))
     (getf (dbi:fetch result) :|definition_hash|)))
 
-(defun sql-word-id-from-reading (reading)
+(defun/sql sql-word-id-from-reading (reading)
   (let* ((query (dbi:prepare *connection*
                              "SELECT id FROM words WHERE reading = ?;"))
          (result (dbi:execute query reading)))
     (getf (dbi:fetch result) :|id|)))
 
-(defun sql-text-id-from-hash (text-hash)
+(defun/sql sql-text-id-from-hash (text-hash)
   (let* ((query (dbi:prepare *connection*
                              "SELECT id FROM texts WHERE hash = unhex(?);"))
          (result (dbi:execute query text-hash)))
     (getf (dbi:fetch result) :|id|)))
 
-(defun add-child-word-to-text (text-hash reading ocurrence-in-text)
+(defun/sql add-child-word-to-text (text-hash reading ocurrence-in-text)
   (let* ((text-query (dbi:prepare *connection* "SELECT id, contents FROM texts WHERE hash = unhex(ucase(?));"))
          (single-result (dbi:fetch (dbi:execute text-query text-hash))))
     (assert (not (null single-result))
@@ -98,10 +75,66 @@
         (sql-add-text-child-word text-hash reading start end))))
   t)
 
+(defun/sql most-recent-texts (&optional (limit 5))
+  (let* ((query (dbi:prepare *connection* "select contents, id, lcase(hex(hash)) from texts ORDER BY id DESC LIMIT ?;"))
+         (result (dbi:execute query limit)))
+    (loop for row = (dbi:fetch result)
+       while row
+       collect (symbolize-sql-keys row))))
+
+
+(defun/sql grab-definition-text-id-from-word-id (word-id)
+  (let* ((query (dbi:prepare *connection*
+                             (join-sql-strings
+                              "SELECT texts.id FROM texts"
+                              "INNER JOIN words"
+                              "ON words.definition_hash = texts.hash"
+                              "WHERE words.id = ?")))
+         (result (dbi:execute query word-id)))
+
+    (let ((return-value))
+      (loop for row = (symbolize-sql-keys (dbi:fetch result))
+         while row do
+           (progn
+             (format t "~S~%" row)
+             (setf return-value (getf row :id)))
+         finally (return return-value)))))
+
+(defun/sql grab-child-words (text-id)
+  (let* ((query (dbi:prepare *connection*
+                             (join-sql-strings
+                              "SELECT text_child_words.*, words.reading AS reading"
+                              "FROM text_child_words"
+                              "INNER JOIN words ON words.id = text_child_words.word_id"
+                              "WHERE text_id = ?"
+                              "ORDER BY text_child_words.beginning ASC")))
+         (result (dbi:execute query text-id)))
+    result))
+
+(defun/sql grab-text (text-id)
+  (let* ((query (dbi:prepare *connection*
+                             (join-sql-strings
+                              "SELECT contents, replace(substring(texts.contents, 1, 15), '\n', '') as peek FROM texts"
+                              "WHERE id = ?")))
+         (result (dbi:execute query text-id)))
+    result))
+
 (defun find-definition-from-backend (reading)
   (case *current-backend*
     (:goo-web (goo-definition-from-meaning-page (goo-web-search reading)))
-    (:goo-local (goo-definition-from-meaning-page (goo-local-search reading)))))
+    (:goo-local (goo-definition-from-meaning-page (goo-local-search reading)))
+    (:larousse (larousse-search reading))
+    (:user-supplied
+     (progn
+       (format t "Enter the definition please:~%")
+       (let ((lines (loop for line = (read-line)
+                       for (match groups) = (multiple-value-list 
+                                             (cl-ppcre:scan-to-strings "(.*)DACODA" line))
+                       while (not match)
+                       collect line into lines
+                       finally (return (append lines (list (aref groups 0)))))))
+         (format nil "~{~A~^~%~}" lines))))
+    (t (error "Backend ~A is not defined" *current-backend*))))
 
 ;; Grab the words and definition from the db or fill the db with a new word
 (defun find-word-and-definition (reading)
@@ -114,33 +147,6 @@
                    word-and-text))))
     (helper reading)))
 
-(defparameter *sql-keys-default-special-cases*
-  '(:|lcase(hex(definition_hash))| :definition-hash
-    :|lcase(hex(words.definition_hash))| :definition-hash
-    :|lcase(hex(hash))| :hash
-    :|lcase(hex(texts.hash))| :hash))
-
-(defun symbolize-sql-keys (sql-result &optional additional-special-cases)
-  (let ((special-cases (copy-list *sql-keys-default-special-cases*)))
-    (loop for (key value) on additional-special-cases by #'cddr
-       do (setf (getf special-cases key) value))
-    (loop for (key value) on sql-result
-       by #'cddr
-       append (list (intern (format nil "~A"
-                                    (let ((special-case (getf special-cases key)))
-                                      (if special-case
-                                          special-case
-                                          (string-upcase (symbol-name key)))))
-                            :keyword)
-                    value))))
-
 (defun add-word (reading)
   (let* ((definition (find-definition-from-backend reading)))
     (sql-add-word reading definition)))
-
-(defun most-recent-texts (&optional (limit 5))
-  (let* ((query (dbi:prepare *connection* "select contents, id, lcase(hex(hash)) from texts ORDER BY id DESC LIMIT ?;"))
-         (result (dbi:execute query limit)))
-    (loop for row = (dbi:fetch result)
-       while row
-       collect (symbolize-sql-keys row))))

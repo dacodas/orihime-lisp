@@ -1,7 +1,10 @@
+(defvar *orihime-backend* :goo-local)
+
 (setq slime-enable-evaluate-in-emacs t)
 
 (setq *text-buffer-format* "*text-%s*")
 (setq *text-buffer-regex* "\\*text-\\(.*\\)\\*")
+
 
 (defun orihime-get-buffer-text-id (buffer-name)
   (interactive "b")
@@ -43,7 +46,9 @@
 ;; Grab the definition of the word, regardless of whether it has been searched for already 
 (defun orihime-show-word (word)
   (interactive "sWord to lookup: ")
-  (slime-eval-async `(orihime::find-word-and-definition ,word)
+  (slime-eval-async
+      `(cl-user::let ((orihime::*current-backend* ,*orihime-backend*))
+         (orihime::find-word-and-definition ,word))
     #'orihime-open-text-in-new-buffer))
 
 ;; Should paging perhaps be done in emacs? That way we could use helm and all
@@ -57,17 +62,25 @@
                     ocurrence))
          (text-id (orihime-get-buffer-text-id (buffer-name))))
     (if text-id
-        (progn
-          (message "Getting text for %s" text-id)
-          (cl-macrolet ((stupid-macro ()
-                                      `(slime-eval-async `(orihime::add-child-word-to-text ,text-id ,reading ,ocurrence)
-                                         (lambda (result) (orihime-show-word ,reading)))))
-            (stupid-macro)))
+      (slime-eval-async
+          `(cl-user::let ((orihime::*current-backend* ,*orihime-backend*))
+             (orihime::add-child-word-to-text ,text-id ,reading ,ocurrence))
+        `(lambda (result) (orihime-show-word ,reading)))
       (orihime-show-word reading))))
 
 (defun orihime-show-word-from-region-and-modify (start end)
   (interactive "r")
   (orihime-show-word-from-region start end t))
+
+(defun orihime-show-word-from-region-with-user-definition (start end)
+  (interactive "r")
+  (let ((*orihime-backend* :user-supplied))
+    (orihime-show-word-from-region start end)))
+
+(defun orihime-show-word-from-region-and-modify-with-user-definition (start end)
+  (interactive "r")
+  (let ((*orihime-backend* :user-supplied))
+    (orihime-show-word-from-region start end t)))
 
 (cl-defun orihime-open-recent-text (&optional (limit 20))
   (interactive)
