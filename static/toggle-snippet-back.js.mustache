@@ -1,0 +1,7 @@
+let current_field_number = {{ field-number }};
+
+for ( let node of words[current_field_number].childNodes )
+{
+    if ( is_reading(node) )
+        node.onclick();
+}
