@@ -62,67 +62,75 @@ strong.orihime-color-{{ color-number }}
           row
           (generate-anki-card hash)))))
 
-(defun generate-anki-card (text-hash)
-  (let ((text-id (sql-text-id-from-hash text-hash)))
-    (ensure-directories-exist *cards-output*)
-    (with-open-file (output-file
-                     (merge-pathnames (format nil "~A.json" text-hash) *cards-output*)
-                     :direction :output
-                     :if-exists :supersede
-                     :if-does-not-exist :create)
-      (format output-file "~A" 
-              (let ((number-of-words 0))
-                (labels ((text-processing (text-id)
-                           (process-sql-row (grab-text text-id)
-                             (with-plist-properties (peek contents)
-                                 row
-                               (child-words-processing contents text-id))))
-                         (child-words-processing (text-contents text-id)
-                           (let ((added-char-count 0)
-                                 (previous-end 0)
-                                 (row-count 0)
-                                 (sql-response (grab-child-words text-id))
-                                 (tagged-contents text-contents))
-                             (loop for row = (symbolize-sql-keys (dbi:fetch sql-response))
-                                for current-row = (incf row-count)
-                                while row 
-                                do
-                                  (incf number-of-words)
-                                  (with-plist-properties (beginning ending)
-                                      row
-                                    (let ((new-beginning (+ beginning added-char-count))
-                                          (new-ending (+ ending added-char-count)))
-                                      (if (< new-beginning previous-end)
-                                          (format t "Not adding this word...~%")
-                                          (progn
-                                            (setf tagged-contents
-                                                  (format nil "~A<strong class=\"orihime-color-~A\">~A</strong>~A"
-                                                          (subseq tagged-contents 0 new-beginning)
-                                                          (mod current-row (length *pretty-colors*))
-                                                          (subseq tagged-contents new-beginning new-ending)
-                                                          (subseq tagged-contents new-ending)))
-                                            (incf added-char-count (+ 24 17))
-                                            (setf previous-end (+ new-ending 17 24))))))
-                                collect
-                                  (with-plist-properties (reading word-id)
-                                      row
-                                    (let ((definition-text-id (grab-definition-text-id-from-word-id word-id)))
-                                      `(:li :class "orihime-word" (:div :class "reading" ,reading)
-                                            ,@(text-processing definition-text-id))))
-                                into items
-                                finally
-                                  (return `((:div :class "definition" ,tagged-contents)
-                                            ,(if items  
-                                                 `(:div :class "child-words" (:ul ,@items))
-                                                 "")))))))
+(defun text-to-html (text-hash)
+  (let ((number-of-words 0)
+        (text-id (sql-text-id-from-hash text-hash)))
+    (labels ((text-processing (text-id)
+               (process-sql-row (grab-text text-id)
+                 (with-plist-properties (peek contents)
+                     row
+                   (child-words-processing contents text-id))))
+             (child-words-processing (text-contents text-id)
+               (let ((added-char-count 0)
+                     (previous-end 0)
+                     (row-count 0)
+                     (sql-response (grab-child-words text-id))
+                     (tagged-contents text-contents))
+                 (loop for row = (symbolize-sql-keys (dbi:fetch sql-response))
+                    for current-row = (incf row-count)
+                    while row 
+                    do
+                      (incf number-of-words)
+                      (with-plist-properties (beginning ending)
+                          row
+                        (let ((new-beginning (+ beginning added-char-count))
+                              (new-ending (+ ending added-char-count)))
+                          (if (< new-beginning previous-end)
+                              (format t "Not adding this word...~%")
+                              (progn
+                                (setf tagged-contents
+                                      (format nil "~A<strong class=\"orihime-color-~A\">~A</strong>~A"
+                                              (subseq tagged-contents 0 new-beginning)
+                                              (mod current-row (length *pretty-colors*))
+                                              (subseq tagged-contents new-beginning new-ending)
+                                              (subseq tagged-contents new-ending)))
+                                (incf added-char-count (+ 24 17))
+                                (setf previous-end (+ new-ending 17 24))))))
+                    collect
+                      (with-plist-properties (reading word-id)
+                          row
+                        (let ((definition-text-id (grab-definition-text-id-from-word-id word-id)))
+                          `(:li :class "orihime-word" (:div :class "reading" ,reading)
+                                ,@(text-processing definition-text-id))))
+                    into items
+                    finally
+                      (return `((:div :class "definition"  :id ,text-hash ,tagged-contents)
+                                ,(if items  
+                                     `(:div :class "child-words" (:ul ,@items))
+                                     "")))))))
 
-                  (let* ((sexp `(cl-who:with-html-output (*standard-output* nil :indent t) 
-                                  (cl-who:htm ,@(text-processing text-id))))
-                         (html-output (eval sexp))
-                         (present-fields (loop for i below *anki-max-number-of-words*
-                                            collect (if (< i number-of-words) "1" ""))))
-                    (with-output-to-string (*standard-output*)
-                      (cl-json:encode-json-alist `((fields . ,(append (list html-output) present-fields))))))))))))
+      (let* ((sexp `(cl-who:with-html-output (*standard-output* nil :indent t) 
+                      (cl-who:htm ,@(text-processing text-id))))
+             (html-output (eval sexp)))
+        (values html-output number-of-words)))))
+
+(defun generate-anki-card (text-hash)
+  
+  (ensure-directories-exist *cards-output*)
+  (with-open-file (output-file
+                   (merge-pathnames (format nil "~A.json" text-hash) *cards-output*)
+                   :direction :output
+                   :if-exists :supersede
+                   :if-does-not-exist :create)
+    (format output-file "~A" 
+            
+
+            (multiple-value-bind (html-output number-of-words)
+                (text-to-html text-hash)
+              (let ((present-fields (loop for i below *anki-max-number-of-words*
+                                       collect (if (< i number-of-words) "1" "")))) 
+                (with-output-to-string (*standard-output*)
+                  (cl-json:encode-json-alist `((fields . ,(append (list html-output) present-fields))))))))))
 
 (defun render-template-to-string (template context)
   (with-output-to-string (*standard-output*)
