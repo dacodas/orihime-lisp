@@ -1,7 +1,9 @@
 (in-package :orihime)
 
-(defparameter *goo-host* "goo-local-container")
-(defparameter *goo-port* 7081)
+(def-environment-variables
+    (orihime-goo-local-host
+     orihime-goo-local-port))
+
 (defparameter *goo-local-cache* #P"/var/lib/goo/data/dictionary-entries/")
 
 (defparameter *goo-trie-socket* nil)
@@ -9,7 +11,7 @@
 (defun goo-local-search (reading)
 
   (if (not *goo-trie-socket*)
-      (setf *goo-trie-socket* (usocket:socket-connect *goo-host* *goo-port*)))
+      (setf *goo-trie-socket* (usocket:socket-connect orihime-goo-local-host orihime-goo-local-port)))
 
   (let ((stream (usocket:socket-stream *goo-trie-socket*)))
     (format stream "LEMMEKNOW ~A" reading)
