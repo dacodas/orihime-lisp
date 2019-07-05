@@ -108,9 +108,15 @@
           collect  
             ,@body))))
 
+(defun new-mustache-escape (string)
+  (declare (type string string))
+  string)
+
 (defmacro mustache-render (&rest args)
   "Don't escape HTML"
-  `(flet ((mustache::escape (string)
-            (declare (type string string))
-            string))
-     (mustache:render ,@args)))
+  `(progn
+     (setf original-mustache-escape (symbol-function 'mustache::escape))
+     (setf (symbol-function 'mustache::escape) #'new-mustache-escape)
+     (unwind-protect 
+          (mustache:render ,@args)
+       (setf (symbol-function 'new-mustache-escape) original-mustache-escape))))

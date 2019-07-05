@@ -1,3 +1,4 @@
+{{ ANKI-field-number-start }}
 <html>
     <head>
         <style>
@@ -5,14 +6,6 @@
          {
              white-space: pre-wrap
          }
-
-         body
-         {
-             margin: 0 auto;
-             max-width: 900px;
-             font-size: 1.25em;
-         }
-
         </style>
 
         <style>
@@ -23,9 +16,7 @@
     </head>
     <body> 
 
-        <div id="anki-text">
         {{ ANKI-Text }}
-        </div>
 
         <script>
 
@@ -49,20 +40,15 @@
 
          let words = document.getElementsByClassName("orihime-word");
 
-         function hide_words_and_set_onclick() 
-         {
-             for ( let word of words )
-                 for ( let node of word.childNodes )
-                 {
-                     if ( is_reading(node) )
-                         node.onclick = toggle_sibling_paragraphs_display;
+         for ( let word of words )
+             for ( let node of word.childNodes )
+             {
+                 if ( is_reading(node) )
+                     node.onclick = toggle_sibling_paragraphs_display;
 
-                     if ( is_definition(node) )
-                         node.style.display = "none";
-                 }
-         }
-
-         hide_words_and_set_onclick()
+                 if ( is_definition(node) )
+                     node.style.display = "none";
+             }
 
          let definitions = []
 
@@ -86,8 +72,10 @@
              }
          }
 
+
          {{ toggle-snippet }}
 
         </script>
     </body>
 </html>
+{{ ANKI-field-number-end }}

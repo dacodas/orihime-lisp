@@ -51,9 +51,21 @@ strong.orihime-color-{{ color-number }}
                         :output *standard-output* 
                         :directory *python-scripts*)))
 
+(defun/sql get-all-text-html ()
+  (let ((query (dbi:prepare *connection*
+                            "select hex(hash) as hash from texts;"))
+        (texts nil))
+    (process-multiple-sql-rows (dbi:execute query)
+      (with-plist-properties (hash)
+          row
+        (push (text-to-html hash) texts)))
+    texts))
+
 (defun/sql generate-all-anki-cards ()
 
-  (uiop:delete-directory-tree *cards-output* :validate t)
+  (uiop:delete-directory-tree *cards-output*
+                              :validate t
+                              :if-does-not-exist :ignore)
 
   (let ((query (dbi:prepare *connection*
                             "select hex(hash) as hash from texts where source_id is not null;")))
@@ -104,7 +116,7 @@ strong.orihime-color-{{ color-number }}
                                 ,@(text-processing definition-text-id))))
                     into items
                     finally
-                      (return `((:div :class "definition"  :id ,text-hash ,tagged-contents)
+                      (return `((:div :class "definition" :id ,(sql-text-hash-from-id text-id) ,tagged-contents)
                                 ,(if items  
                                      `(:div :class "child-words" (:ul ,@items))
                                      "")))))))
