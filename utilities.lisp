@@ -4,16 +4,32 @@
 (defparameter *templates-directory* (merge-pathnames (make-pathname :directory '(:relative "static"))
                                      (asdf:system-source-directory :orihime)))
 
+(defmacro def-environment-variables ((&rest symbols))
+  (flet ((env-var-from-symbol (symbol)
+           (cl-ppcre:regex-replace-all "-" (symbol-name symbol)  "_")))
+    (let ((defparameters
+           (loop for symbol in symbols 
+              collect `(defparameter ,symbol ,(sb-ext:posix-getenv (env-var-from-symbol symbol))))))
+      `(progn ,@defparameters))))
+
+(def-environment-variables
+    (orihime-mysql-host
+     orihime-mysql-port
+     orihime-mysql-database
+     orihime-mysql-username
+     orihime-mysql-password))
+
 (defun make-text-hash (contents)
    (ironclad:digest-sequence :sha256 (sb-ext:string-to-octets contents)))
 
 (defun initialize-connection ()
   (setf *connection*
         (dbi:connect :mysql
-                     :host "mysql-container"
-                     :database-name "orihime"
-                     :username "sbcl"
-                     :password "dacodastrack"))
+                     :host orihime-mysql-host
+                     :port (parse-integer orihime-mysql-port)
+                     :database-name orihime-mysql-database
+                     :username orihime-mysql-username
+                     :password orihime-mysql-password))
 
   (let* ((query (dbi:prepare *connection*
                              "set names utf8;"))
