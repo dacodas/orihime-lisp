@@ -62,6 +62,12 @@
          (result (dbi:execute query text-hash)))
     (getf (dbi:fetch result) :|id|)))
 
+(defun/sql sql-text-hash-from-id (text-id)
+  (let* ((query (dbi:prepare *connection*
+                             "SELECT hex(hash) as hash FROM texts WHERE id = ?;"))
+         (result (dbi:execute query text-id)))
+    (getf (dbi:fetch result) :|hash|)))
+
 (defun/sql add-child-word-to-text (text-hash reading ocurrence-in-text)
   (let* ((text-query (dbi:prepare *connection* "SELECT id, contents FROM texts WHERE hash = unhex(ucase(?));"))
          (single-result (dbi:fetch (dbi:execute text-query text-hash))))
