@@ -81,6 +81,9 @@
         (sql-add-text-child-word text-hash reading start end))))
   t)
 
+(defun text-from-hash (text-hash)
+  (second (dbi:fetch (orihime::grab-text (orihime::sql-text-id-from-hash text-hash)))))
+
 (defun/sql most-recent-texts (&optional (limit 5))
   (let* ((query (dbi:prepare *connection* "select contents, id, lcase(hex(hash)) from texts ORDER BY id DESC LIMIT ?;"))
          (result (dbi:execute query limit)))
