@@ -1,10 +1,20 @@
+# ARCHIVED 
+
 # Orihime
 
 ## To-do list
 
-### Reimporting the same sentence
+### Gameplan
 
-I should store the text-hash as one of the fields so that re-imported cards with the same text-hash are simply ignored
+Change database schema to support users
+
+Get authentication working
+
+Sanitize input from third-parties
+
+Separate pods mysql, hunchentoot, and orihime pods out; expose them as services with selectors based on environment
+
+Deal with multiple selections
 
 ### Adding sentence and then changing it later
 
